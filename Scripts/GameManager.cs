@@ -1,8 +1,17 @@
-﻿using UnityEngine;
+﻿/**
+ * Game Manager manages game state and facilitates running the entire show.
+ * 
+ * @author Anthony 'Bitzawolf' Pepe
+ * @date 2017
+ */
+
+using UnityEngine;
 using UnityEngine.SceneManagement;
 
 public class GameManager : MonoBehaviour
 {
+    /* Based on Unity's default unit to real-world size, I apparently made the assets huge.
+     * This means HUGE forces are needed to move them appropriately.*/
     public static float FORCE_MULT = 1000000;
 
     private static GameManager instance = null;
@@ -31,13 +40,16 @@ public class GameManager : MonoBehaviour
         PAUSED
     }
 
+    // These properties pertain to each individual level
     [Header("Per Level")]
     public GameObject spawnPoint = null;
     public GameObject lastCheckpoint = null;
     public float levelTimer = 0;
     public int deaths = 0;
+    public int collectablesGot = 0;
     public LevelMetadata levelMetadata;
 
+    // These properties remain the same over the course of the entire game
     [Space]
     [Header("Game Wide")]
     public State currentState = State.IN_LEVEL;
@@ -51,6 +63,7 @@ public class GameManager : MonoBehaviour
     public FMOD.Studio.VCA vca_SFX;
     public Wolf playerWolf;
 
+    // Debug settings
     [Space]
     [Header("Debug")]
     public bool debugMode = true;
@@ -58,6 +71,7 @@ public class GameManager : MonoBehaviour
 
     void Start ()
     {
+        // Cache important Game State objects
         cameraFollowing = cam.GetComponent<Follow>();
         playerWolf = player.GetComponent<Wolf>();
         FMODUnity.RuntimeManager.StudioSystem.getVCA("SFX", out vca_SFX);
@@ -70,6 +84,7 @@ public class GameManager : MonoBehaviour
         DontDestroyOnLoad(eventSystem);
         SceneManager.sceneLoaded += onSceneLoaded;
 
+        // If we're in debug mode, don't set the current state nor load the Title screen.
         if (debugMode)
         {
             SpawnPoint spawps = FindObjectOfType<SpawnPoint>();
@@ -121,7 +136,7 @@ public class GameManager : MonoBehaviour
     private void updatePaused() { }
 
     /**
-     * Cleanup from this current state.
+     * Perform cleanup required for leaving whatever state we're in.
      */
     private void leaveState()
     {
@@ -172,12 +187,19 @@ public class GameManager : MonoBehaviour
         currentState = nextState;
     }
 
+    /**
+     * Triggers a level to end.
+     * See transitionState for cleanup procedure.
+     */
     public void triggerLevelEnd(string nextLevel)
     {
         this.nextLevel = nextLevel;
         transitionState(State.LEVEL_ENDING);
     }
 
+    /**
+     * Starts a level.
+     */
     public void triggerGamestart()
     {
         transitionState(State.LEVEL_STARTING);
@@ -186,6 +208,11 @@ public class GameManager : MonoBehaviour
         SceneManager.LoadScene("Level_001");
     }
 
+    /**
+     * Loads the indicated level, or the main menu if an
+     * empty string is passed (default action for Goal objects without
+     * an assigned next level.
+     */
     public void loadLevel(string levelName)
     {
         if (levelName == "")
@@ -194,12 +221,15 @@ public class GameManager : MonoBehaviour
             return;
         }
 
-        // TODO check first if we're in the
-
         transitionState(State.LEVEL_LOADING);
         SceneManager.LoadScene(levelName);
     }
 
+    /**
+     * Loads the next level which is stored inside this manager.
+     * If no nextLevel has been assigned yet, a warning is produced
+     * and nothing happens.
+     */
     public void loadNextLevel()
     {
         if (nextLevel == "")
@@ -212,14 +242,23 @@ public class GameManager : MonoBehaviour
         nextLevel = "";
     }
 
+    /**
+     * This is called from Unity's C# delegate event for a scene
+     * being loaded.
+     */
     public void onSceneLoaded(Scene scene, LoadSceneMode mode)
     {
         if (currentState == State.LEVEL_LOADING)
         {
-            transitionState(State.LEVEL_STARTING); // TODO transition to LEVEL_STARTING first, then after into go to IN_LEVEL
+            transitionState(State.LEVEL_STARTING);
         }
     }
 
+    /**
+     * This is a list of cheats developers can use to assist in developing
+     * the game and level(s). This function is only called from the update loop
+     * if debugMode is true!
+     */
     private void checkForCheats()
     {
         if (Input.GetKeyDown(KeyCode.F1))

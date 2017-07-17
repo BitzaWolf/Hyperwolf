@@ -1,4 +1,13 @@
-﻿using UnityEngine;
+﻿/**
+ * Collectables are little trinkets the player can grab while playing through a level.
+ * They don't server much of a purpose outside of a 100% completion.
+ * 
+ * Collectables spin when alive. When the player touches one, they explode into mini squares.
+ * This requires a little bit of fancy work since we need to remove the mesh when a collectable is
+ * grabbed, but we still need to play the particle effect until it ends. Once it ends, then the gameobject
+ * can be deleted.
+ */
+using UnityEngine;
 
 public class Collectable : MonoBehaviour
 {
@@ -32,7 +41,7 @@ public class Collectable : MonoBehaviour
     {
         if (c.gameObject.tag == "Player")
         {
-            GameManager.i().levelMetadata.collectablesGot += 1;
+            GameManager.i().collectablesGot += 1;
             mesh.enabled = false;
             particles.Play();
             isAlive = false;

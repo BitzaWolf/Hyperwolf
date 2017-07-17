@@ -1,4 +1,12 @@
-﻿Shader "Bitzawolf/AntiAliasing"
+﻿/**
+ * Primitive Anti Aliasing shader. Uses a basic 3x3 Gaussian kernel.
+ * TODO Improvements:
+ *		- Use a smaller step, or at least fine-tune it somehow.
+ *		- Try a different kernel, maybe a squared Gaussian?
+ *		- Perform multiple passes.
+ * @author Anthony 'Bitzawolf' Pepe
+ */
+Shader "Bitzawolf/AntiAliasing"
 {
 	Properties
 	{

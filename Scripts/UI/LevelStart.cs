@@ -1,4 +1,9 @@
-﻿using UnityEngine;
+﻿/**
+ * Level Start controls the level starting UI. It gets activated by the Game Manager
+ * and actually kicks off a level of the game.
+ */
+
+using UnityEngine;
 using UnityEngine.UI;
 
 public class LevelStart : MonoBehaviour
@@ -16,8 +21,7 @@ public class LevelStart : MonoBehaviour
 
     private float timer = 0;
     private State curState = State.SHOWING;
-
-    // Use this for initialization
+    
     void Start ()
     {
 		

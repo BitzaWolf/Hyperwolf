@@ -1,4 +1,8 @@
-﻿using UnityEngine;
+﻿/**
+ * Applies the Anti Aliasing shader. See shaders/AntiAliasing
+ */
+
+using UnityEngine;
 
 public class AntiAliasing : MonoBehaviour
 {

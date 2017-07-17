@@ -1,4 +1,9 @@
-﻿Shader "Bitzawolf/Panel" {
+﻿/**
+ * This shader is used to render the floor panels.
+ * This is just Unity's standard Surface shader without many modifications.
+ */
+
+Shader "Bitzawolf/Panel" {
 	Properties {
 		_PanelColor ("Panel Color", Color) = (1, 1, 1, 1)
 		_BorderColor ("Border Color", Color) = (0, 0, 0, 1)

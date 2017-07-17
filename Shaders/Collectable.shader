@@ -1,4 +1,12 @@
-﻿Shader "Bitzawolf/Collectable"
+﻿/**
+ * Renders a collectable object. Collectables are a single quad and the backfaces
+ * culled, creating a strangely 2D looking object in a 3D world. Further, collectables
+ * have a border around them which is achieved through a simple scale in the vertext shader.
+ * 
+ * TODO: Get this shader to cast (and recieve) shadows
+ * @author Anthony 'Bitzawolf' Pepe
+ */
+Shader "Bitzawolf/Collectable"
 {
 	Properties
 	{

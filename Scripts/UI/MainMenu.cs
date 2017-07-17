@@ -1,4 +1,7 @@
-﻿using UnityEngine;
+﻿/**
+ * Manages the Main Menu UI. 
+ */
+using UnityEngine;
 
 public class MainMenu : MonoBehaviour
 {

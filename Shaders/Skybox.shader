@@ -1,4 +1,9 @@
-﻿// Based off Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
+﻿/**
+ * A custom skybox that creates a top-down gradient from one color into another.
+ *
+ * Based off Unity built-in shader source. Copyright (c) 2016 Unity Technologies. MIT license (see license.txt)
+ * @author Anthony 'Bitzawolf' Pepe
+ */
 
 Shader "Bitzawolf/Skybox" {
 Properties {

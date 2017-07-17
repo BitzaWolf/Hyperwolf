@@ -1,4 +1,13 @@
-﻿// Based on http://wiki.unity3d.com/index.php/Silhouette-Outlined_Diffuse
+﻿/**
+ * This shader is used for the player wolf and other creatures in the game.
+ * This shader uses a flat, shadeless approach to meshes, but allows them to cast
+ * shadows. This gives creatures a funny 2D cutout look, despite being 3D objects
+ * and casting 3D shadows.
+ * 
+ * TODO add a border around creatures.
+ * Based on http://wiki.unity3d.com/index.php/Silhouette-Outlined_Diffuse
+ * @author Anthony 'Bitzawolf' Pepe
+ */
 
 Shader "Bitzawolf/Creature"
 {

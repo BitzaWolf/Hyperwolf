@@ -1,4 +1,7 @@
-﻿using UnityEngine;
+﻿/**
+ *  Checkpoints are used in the game to warp the player back to if they die.
+ */
+using UnityEngine;
 
 public class Checkpoint : MonoBehaviour
 {

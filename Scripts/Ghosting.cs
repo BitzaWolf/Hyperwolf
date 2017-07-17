@@ -1,4 +1,8 @@
-﻿using UnityEngine;
+﻿/**
+ * Ghosting handles a special effect where copies of a mesh are created at
+ * regular intervals and they slowly become transparent and eventually invisible.
+ */
+using UnityEngine;
 
 public class Ghosting : MonoBehaviour
 {
@@ -11,56 +15,39 @@ public class Ghosting : MonoBehaviour
     [Range(0, 1), Tooltip("How transparent the end sprite should be.")]
     public float endAlpha = 0.0f;
 
+    // The ghostPrefab contains the GhostingGhost script, which handles making a single
+    //      mesh copy translucent and invisible.
     [Tooltip("Don't change!")]
     public GameObject ghostPrefab;
-
-    [Tooltip("How long the effect lasts before turning itself off. 0 for never ending.")]
-    public float effectTimer = 0;
-
-    //private SpriteRenderer spriteRenderer;
+    
+    // How much time should elapse between ghost spawns.
     private float ghostSpawnRate;
+
+    // Time remaining until next ghost spawn.
     private float ghostSpawnTimer;
-    private float effectReset;
 
     void Start ()
     {
-        //spriteRenderer = GetComponent<SpriteRenderer>();
         ghostSpawnRate = ghostLifetime / numOfGhosts;
         ghostSpawnTimer = 0;
-        effectReset = effectTimer;
-        effectTimer = 0;
     }
 	
 	void Update ()
     {
-        if (effectReset > 0)
-        {
-            if (effectTimer <= 0)
-                return;
-
-            effectTimer -= Time.deltaTime;
-        }
-
         ghostSpawnTimer -= Time.deltaTime;
         if (ghostSpawnTimer > 0)
             return;
+
+        // Time to spawn a new ghost!
 
         ghostSpawnTimer += ghostSpawnRate;
 
         GameObject ghost = Instantiate(ghostPrefab, transform.position, transform.rotation);
         ghost.transform.localScale = transform.lossyScale;
         GhostingGhost ghostScript = ghost.GetComponent<GhostingGhost>();
-        //MeshRenderer mesh = ghost.GetComponent<MeshRenderer>();
-
-        //ghostRenderer.sprite = spriteRenderer.sprite;
-        //ghostRenderer.color = spriteRenderer.color;
+        
         ghostScript.timeRemainig = ghostLifetime;
         ghostScript.initTime = ghostLifetime;
         ghostScript.endAlpha = endAlpha;
-    }
-    
-    public void Activate()
-    {
-        effectTimer = effectReset;
     }
 }

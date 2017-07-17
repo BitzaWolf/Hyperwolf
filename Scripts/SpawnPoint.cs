@@ -1,4 +1,8 @@
-﻿using UnityEngine;
+﻿/**
+ * Spawn Point marks the beginning of the level, the position and direction the player starts
+ * in. There should only be one per level.
+ */
+using UnityEngine;
 
 public class SpawnPoint : MonoBehaviour
 {

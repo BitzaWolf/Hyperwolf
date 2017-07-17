@@ -1,11 +1,20 @@
-﻿using UnityEngine;
+﻿/**
+ * Forces the camera to follow a Gameobject target, offset by a certain vector if wanted.
+ * This script contains two separate vector values depending on if the player is running left
+ * or right. Since the player runs up-left or up-right, we need to move the camera so the player can
+ * see appropriately far forward to dodge obstacles.
+ */
+using UnityEngine;
 
 public class Follow : MonoBehaviour
 {
     public GameObject target = null;
     public float distance = 10;
+    // TODO replace with vector3. Also, enable this to work for a variety of screen sizes. Maybe use proportions?
     public float xOffsetL = 0, yOffsetL = 0;
     public float xOffsetR = 0, yOffsetR = 0;
+
+    // When the camera changes direction, interpolate the shift so it's not so sudden.
     [ Tooltip("How long the camera should take to move.") ]
     public float changePositionDuration = 2;
     
@@ -30,7 +39,8 @@ public class Follow : MonoBehaviour
         if (moveCamera)
             updateCameraPosition();
         
-        transform.position = target.transform.position - curOffset;
+        if (target != null)
+            transform.position = target.transform.position - curOffset;
 	}
 
     private void updateCameraPosition()

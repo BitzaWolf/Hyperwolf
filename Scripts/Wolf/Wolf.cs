@@ -1,11 +1,16 @@
-﻿using UnityEngine;
+﻿/**
+ * This is the main player!
+ */
+using UnityEngine;
 
 public class Wolf : MonoBehaviour
 {
     public float runSpeed = 60;
     public float jumpForce = 13;
     public float dashLength = 0.5f;
+    // How much faster should the player run when dashing?
     public float dashMultiplier = 2;
+    // Direction player is facing. Semmantically easier than interpreting rotation info.
     public bool isRunningLeft = false;
 
     [FMODUnity.EventRef]
@@ -15,17 +20,21 @@ public class Wolf : MonoBehaviour
     public string jumpingSFX = "";
     private FMOD.Studio.EventInstance ev_jumping;
 
-    private const float FORCE_MULT = 1000000;
-
     private Animator anim;
     private Vector3 vec_move, vec_jump, vec_down, vec_offset, vec_turn;
     private Rigidbody rb;
     private BoxCollider coll;
-    private bool onGround = true, hasDash = true,
-        wantsToTurnLeft = false, wantsToTurnRight = false,
+    private bool onGround = true,
+        hasDash = true,
+        wantsToTurnLeft = false,
+        wantsToTurnRight = false,
         doMove = true;
     private float dashTimer = 0;
 
+    /**
+     * Initialize a few variables.
+     * Vectors are initialized and cached so the game isn't constantly creating new Vector3 objects.
+     */
     private void Start()
     {
         vec_move = new Vector3();
@@ -41,7 +50,7 @@ public class Wolf : MonoBehaviour
         ev_running.set3DAttributes(new FMOD.ATTRIBUTES_3D());
         FMODUnity.RuntimeManager.AttachInstanceToGameObject(ev_running, transform, rb);
         FMODUnity.RuntimeManager.AttachInstanceToGameObject(ev_jumping, transform, rb);
-        ev_running.start(); // TODO need to set attenuation
+        ev_running.start(); // TODO need to set FMOD attenuation
         ev_jumping.start();
     }
 
@@ -52,19 +61,19 @@ public class Wolf : MonoBehaviour
         checkJump();
         checkTurnInput();
 
-        if (Input.GetKeyDown(KeyCode.F2))
-        {
-            phaseOut();
-        }
-
-
         // TODO use a killbox instead. I suppose we could keep this as a backup.
-        if (transform.position.y <= -142)
+        if (transform.position.y <= -500)
         {
             kill();
         }
     }
 
+    /**
+     * Logic to move the wolf forward. The game actually directly manipulates the transform position instead
+     * of using forces, velocity, or the physics engine in general. The up side of this strategy is that it's
+     * very simple to code, makes it trivial to turn the player instantly, the running speed is set. The down
+     * side is that there are no physics interactions with the wolf along the forward/running direction.
+     */
     private void moveWolf()
     {
         if (!doMove)
@@ -74,7 +83,7 @@ public class Wolf : MonoBehaviour
 
         if (Input.GetButtonDown("Dash") && hasDash)
         {
-            GetComponent<Ghosting>().Activate();
+            GetComponent<Ghosting>().enabled = true;
             dashTimer = dashLength;
             hasDash = false;
         }
@@ -82,6 +91,8 @@ public class Wolf : MonoBehaviour
         {
             mult = dashMultiplier;
             dashTimer -= Time.deltaTime;
+            if (dashTimer <= 0)
+                GetComponent<Ghosting>().enabled = false;
         }
 
         vec_move.Set(0, 0, 0);
@@ -96,6 +107,12 @@ public class Wolf : MonoBehaviour
         transform.position += vec_move;
     }
 
+    /**
+     * Checks to see if there is ground reasonably below the player. If so, they can jump and should
+     * be in a running animation. If not, they should be in a falling animation.
+     * Ground is checked via a Raycast. This lets us use any solid physics object as a suitable
+     * ground!
+     */
     private void checkForGround()
     {
         bool nextState = Physics.Raycast(transform.position + vec_offset, vec_down, 10f);
@@ -107,12 +124,13 @@ public class Wolf : MonoBehaviour
         onGround = nextState;
         if (!hasDash && onGround)
         {
-            hasDash = true; // only -set- if currently has no dash.
+            hasDash = true;
         }
 
-        anim.SetBool("InAir", !onGround); // Maybe change to only set when ground status changes?
+        // TODO minor optimization, only set the variable when the ground status -changes-.
+        anim.SetBool("InAir", !onGround);
     }
-
+    
     private void checkJump()
     {
         if (Input.GetButtonDown("Jump") && onGround)
@@ -130,6 +148,10 @@ public class Wolf : MonoBehaviour
         wantsToTurnRight = Input.GetAxis("Horizontal") > 0;
     }
 
+    /**
+     * Checks to see if the player wants to turn in a certain direction or not.
+     * Returns true if the player wants to turn in the direction specified.
+     */
     public bool wantsToTurn(bool turnLeft)
     {
         if (!onGround)
@@ -139,14 +161,17 @@ public class Wolf : MonoBehaviour
     }
 
     /**
-     * Turns the wolf so now they are running in a new direction.
+     * Turns the wolf so now they are running in a new direction. Additionally,
+     * the wolf is snapped into place at the specified position. This is used to keep the
+     * player centered on the track since turn commands are only issued from invisible
+     * Turn gameobjects, which are placed on tracks at intersections/corners.
      */
     public void turn(Vector3 position, bool faceLeft)
     {
         Vector3 pos = new Vector3(position.x, 0, position.z);
         transform.position = pos;
         if (isRunningLeft == faceLeft)
-            return; // no change
+            return; // we're already facing the new direction.
 
         float mult = faceLeft ? -1 : 1;
         transform.Rotate(vec_turn * mult);
@@ -155,7 +180,8 @@ public class Wolf : MonoBehaviour
     }
 
     /**
-     * Kill the wolf, warping them back to the last checkpoint
+     * Kill the wolf, warping them back to the last checkpoint, or Spawn if no checkpoint
+     * has been touched yet.
      */
     public void kill()
     {
@@ -172,23 +198,22 @@ public class Wolf : MonoBehaviour
         turn(checkpoint.transform.position, checkpoint.GetComponent<Checkpoint>().faceLeft);
     }
 
+    /**
+     * Disables the wolf and frees it of all collision. This is a handy effect for finishing
+     * a level or touching an object that should kill the wolf.
+     */
     public void phaseOut()
     {
         // disable gravity (honestly, all physics)
         rb.useGravity = false;
         coll.enabled = false;
         doMove = false;
-        Vector3 force = new Vector3();
-        if (isRunningLeft)
-            force.z = 1e+07f;
-        else
-            force.x = 1e+07f;
-        rb.AddForce(force);
-        // activate fancy shader render thingy.
+        
+        // TODO create fancy shader effect to show the wolf actually phasing out.
     }
 
     /**
-     * Just undos the effects from phaseOut
+     * Undoes the effects caused by phaseOut().
      */
     public void phaseIn()
     {
