@@ -8,7 +8,7 @@ public class MainMenu : MonoBehaviour
     public void onStartClicked()
     {
         GameManager gm = GameManager.i();
-        gm.triggerGamestart();
+        // gm.loadLevel("001");
     }
 
     public void onOptionsClicked()

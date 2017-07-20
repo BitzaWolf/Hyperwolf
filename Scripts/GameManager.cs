@@ -120,11 +120,7 @@ public class GameManager : MonoBehaviour
 	}
 
     private void updateLevelLoading() { }
-
-    private void updateStartingLevel()
-    {
-        // TODO -Fast- countdown timer, then transition to IN LEVEL
-    }
+    private void updateStartingLevel() { } // see LevelStart
 
     private void updateInLevel()
     {
@@ -200,12 +196,16 @@ public class GameManager : MonoBehaviour
     /**
      * Starts a level.
      */
-    public void triggerGamestart()
+    public void triggerGameIntro()
     {
         transitionState(State.LEVEL_STARTING);
         cam.gameObject.SetActive(true);
         player.SetActive(true);
-        SceneManager.LoadScene("Level_001");
+    }
+
+    public void triggerGameStart()
+    {
+        transitionState(State.IN_LEVEL);
     }
 
     /**
@@ -263,8 +263,13 @@ public class GameManager : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.F1))
         {
-            Goal g = FindObjectOfType<Goal>();
-            triggerLevelEnd(g.nextLevel);
+            //Goal g = FindObjectOfType<Goal>();
+            //triggerLevelEnd(g.nextLevel);
+            cameraFollowing.SetOrientation(false);
+        }
+        if (Input.GetKeyDown(KeyCode.F2))
+        {
+            levelStart.show();
         }
     }
 }
