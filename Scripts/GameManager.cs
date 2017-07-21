@@ -32,6 +32,7 @@ public class GameManager : MonoBehaviour
      ******************/
     public enum State
     {
+        GAME_INIT,
         MAIN_MENU,
         LEVEL_LOADING,
         LEVEL_STARTING,
@@ -52,7 +53,7 @@ public class GameManager : MonoBehaviour
     // These properties remain the same over the course of the entire game
     [Space]
     [Header("Game Wide")]
-    public State currentState = State.IN_LEVEL;
+    public State currentState = State.GAME_INIT;
     public Camera cam;
     public Follow cameraFollowing;
     public GameObject player;
@@ -81,6 +82,7 @@ public class GameManager : MonoBehaviour
         DontDestroyOnLoad(player);
         DontDestroyOnLoad(cam);
         DontDestroyOnLoad(levelEnd.gameObject);
+        DontDestroyOnLoad(levelStart.gameObject);
         DontDestroyOnLoad(eventSystem);
         SceneManager.sceneLoaded += onSceneLoaded;
 
@@ -99,7 +101,9 @@ public class GameManager : MonoBehaviour
         }
         else
         {
-            currentState = State.MAIN_MENU;
+            currentState = State.GAME_INIT;
+            transitionState(State.MAIN_MENU);
+            playerWolf.enabled = false;
             SceneManager.LoadScene("Title");
         }
 	}
@@ -108,6 +112,7 @@ public class GameManager : MonoBehaviour
     {
 		switch (currentState)
         {
+            case State.GAME_INIT: break; // no updates
             case State.MAIN_MENU: updateMainMenu(); break;
             case State.LEVEL_LOADING: updateLevelLoading(); break;
             case State.LEVEL_STARTING: updateStartingLevel(); break;
@@ -119,6 +124,7 @@ public class GameManager : MonoBehaviour
             checkForCheats();
 	}
 
+    private void updateMainMenu() { }
     private void updateLevelLoading() { }
     private void updateStartingLevel() { } // see LevelStart
 
@@ -127,8 +133,7 @@ public class GameManager : MonoBehaviour
         levelTimer += Time.deltaTime;
     }
 
-    private void updateEndingLevel() { }
-    private void updateMainMenu() { }
+    private void updateEndingLevel() { } // see LevelEnd
     private void updatePaused() { }
 
     /**
@@ -136,9 +141,14 @@ public class GameManager : MonoBehaviour
      */
     private void leaveState()
     {
-        if (currentState == State.MAIN_MENU)
+        if (currentState == State.GAME_INIT)
         {
-            cam.enabled = true;
+            cam.gameObject.SetActive(false);
+            player.SetActive(false);
+        }
+        else if (currentState == State.MAIN_MENU)
+        {
+            cam.gameObject.SetActive(true);
             player.SetActive(true);
         }
         else if (currentState == State.IN_LEVEL)
@@ -158,20 +168,26 @@ public class GameManager : MonoBehaviour
         if (nextState == State.LEVEL_STARTING)
         {
             cameraFollowing.target = player;
-            levelTimer = 0;
-            deaths = 0;
             levelMetadata = FindObjectOfType<LevelMetadata>();
             SpawnPoint spawn = FindObjectOfType<SpawnPoint>();
             spawnPoint = spawn.gameObject;
-            player.GetComponent<Wolf>().turn(spawnPoint.transform.position, spawn.faceLeft);
+            playerWolf.turn(spawnPoint.transform.position, spawn.faceLeft);
+            levelStart.show();
         }
         else if (nextState == State.IN_LEVEL)
         {
-            // TODO start timer
+            levelTimer = 0;
+            deaths = 0;
+            playerWolf.enabled = true;
         }
         else if (nextState == State.LEVEL_ENDING)
         {
+            playerWolf.enabled = false;
             levelEnd.show();
+        }
+        else if (nextState == State.LEVEL_LOADING)
+        {
+            playerWolf.phaseIn();
         }
         else if (nextState == State.MAIN_MENU)
         {
@@ -193,16 +209,6 @@ public class GameManager : MonoBehaviour
         transitionState(State.LEVEL_ENDING);
     }
 
-    /**
-     * Starts a level.
-     */
-    public void triggerGameIntro()
-    {
-        transitionState(State.LEVEL_STARTING);
-        cam.gameObject.SetActive(true);
-        player.SetActive(true);
-    }
-
     public void triggerGameStart()
     {
         transitionState(State.IN_LEVEL);
@@ -215,7 +221,7 @@ public class GameManager : MonoBehaviour
      */
     public void loadLevel(string levelName)
     {
-        if (levelName == "")
+        if (levelName == "" || levelName == "Title")
         {
             transitionState(State.MAIN_MENU);
             return;
@@ -235,7 +241,6 @@ public class GameManager : MonoBehaviour
         if (nextLevel == "")
         {
             Debug.LogWarning("Tried to load next level, but no next level set!");
-            return;
         }
 
         loadLevel(nextLevel);
@@ -263,13 +268,11 @@ public class GameManager : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.F1))
         {
-            //Goal g = FindObjectOfType<Goal>();
-            //triggerLevelEnd(g.nextLevel);
-            cameraFollowing.SetOrientation(false);
+
         }
         if (Input.GetKeyDown(KeyCode.F2))
         {
-            levelStart.show();
+
         }
     }
 }

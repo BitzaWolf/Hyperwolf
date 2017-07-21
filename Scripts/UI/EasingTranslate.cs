@@ -22,7 +22,7 @@ public class EasingTranslate : Easing
         // from wherever the object currently is. This means subtracting the translation
         // already accomplished from where it should be now, thus translation = previous - current.
         float val = easingCurve.Evaluate(timer / animationLength) * translationAmount;
-        float translation = previousVal - val;
+        float translation = val - previousVal;
         
         gameObject.transform.Translate(translateDirection * translation, space);
 
@@ -47,7 +47,6 @@ public class EasingTranslate : Easing
      */
     public void UndoTranslation()
     {
-        Debug.Log("undo called. :/");
         gameObject.transform.Translate(translateDirection * -translationAmount, space);
     }
 }

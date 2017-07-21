@@ -6,14 +6,26 @@ using UnityEngine.UI;
 
 public class EasingTransparency : Easing
 {
-    public Text text;
+    public Text text = null;
+    public Image image = null;
 
     protected override void updateAnimation(float timer)
     {
         float alpha = easingCurve.Evaluate(timer / animationLength);
-        Color c = text.color;
-        c.a = alpha;
-        text.color = c;
+
+        if (text != null)
+        {
+            Color c = text.color;
+            c.a = alpha;
+            text.color = c;
+        }
+
+        if (image != null)
+        {
+            Color c = image.color;
+            c.a = alpha;
+            image.color = c;
+        }
     }
 
     /**
@@ -22,8 +34,18 @@ public class EasingTransparency : Easing
      */
     protected override void resetAnimation()
     {
-        Color c = text.color;
-        c.a = easingCurve.Evaluate(0);
-        text.color = c;
+        if (text != null)
+        {
+            Color c = text.color;
+            c.a = easingCurve.Evaluate(0);
+            text.color = c;
+        }
+
+        if (image != null)
+        {
+            Color c = image.color;
+            c.a = easingCurve.Evaluate(0);
+            image.color = c;
+        }
     }
 }

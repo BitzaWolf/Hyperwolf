@@ -28,7 +28,8 @@ public class Wolf : MonoBehaviour
         hasDash = true,
         wantsToTurnLeft = false,
         wantsToTurnRight = false,
-        doMove = true;
+        doMove = true,
+        isPhasedOut = false;
     private float dashTimer = 0;
 
     /**
@@ -208,6 +209,7 @@ public class Wolf : MonoBehaviour
         rb.useGravity = false;
         coll.enabled = false;
         doMove = false;
+        isPhasedOut = true;
         
         // TODO create fancy shader effect to show the wolf actually phasing out.
     }
@@ -217,6 +219,9 @@ public class Wolf : MonoBehaviour
      */
     public void phaseIn()
     {
+        if (!isPhasedOut)
+            return;
+
         rb.useGravity = true;
         coll.enabled = true;
         doMove = true;
