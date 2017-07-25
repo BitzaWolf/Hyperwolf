@@ -5,31 +5,55 @@ using UnityEngine;
 
 public class MainMenu : MonoBehaviour
 {
-    public GameObject pinkFadein;
-
+    GameManager gm;
     private void Start()
     {
-        pinkFadein.GetComponent<EasingTransparency>().OnFinish += OnFadeFinish;
+        gm = GameManager.i();
+    }
+
+    public void show()
+    {
+        animateIn();
+        gameObject.SetActive(true);
+    }
+
+    private void animateIn()
+    {
+        // TODO animate in menu items
+    }
+
+    private void animateOut()
+    {
+        // TODO animate out menu items
     }
 
     public void onStartClicked()
     {
-        pinkFadein.GetComponent<EasingTransparency>().Play();
-    }
-
-    private void OnFadeFinish()
-    {
-        GameManager gm = GameManager.i();
-        gm.loadLevel("Level_001");
+        animateOut();
+        // TODO after animate out is done...
+        gm.loadingScreen.fadePanel.OnFinish += OnFadeinFinish;
+        gm.loadingScreen.fadeIn();
+        gm.playerWolf.phaseOut();
     }
 
     public void onOptionsClicked()
     {
-
+        animateOut();
+        // TODO show options menu. (Hey... What's -in- the options menu??)
     }
 
     public void onExitClicked()
     {
         Application.Quit();
+    }
+
+    /**
+     * After play is selected, time to start loading the first level!
+     */
+    private void OnFadeinFinish()
+    {
+        gm.loadingScreen.fadePanel.OnFinish -= OnFadeinFinish;
+        gm.loadLevel("Level_001");
+        gameObject.SetActive(false);
     }
 }

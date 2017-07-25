@@ -59,6 +59,8 @@ public class GameManager : MonoBehaviour
     public GameObject player;
     public LevelEnd levelEnd;
     public LevelStart levelStart;
+    public MainMenu mainMenu;
+    public LoadingScreen loadingScreen;
     public GameObject eventSystem;
     public string nextLevel;
     public FMOD.Studio.VCA vca_SFX;
@@ -83,6 +85,8 @@ public class GameManager : MonoBehaviour
         DontDestroyOnLoad(cam);
         DontDestroyOnLoad(levelEnd.gameObject);
         DontDestroyOnLoad(levelStart.gameObject);
+        DontDestroyOnLoad(mainMenu.gameObject);
+        DontDestroyOnLoad(loadingScreen.gameObject);
         DontDestroyOnLoad(eventSystem);
         SceneManager.sceneLoaded += onSceneLoaded;
 
@@ -102,9 +106,8 @@ public class GameManager : MonoBehaviour
         else
         {
             currentState = State.GAME_INIT;
-            transitionState(State.MAIN_MENU);
-            playerWolf.enabled = false;
-            SceneManager.LoadScene("Title");
+            loadingScreen.gameObject.SetActive(true);
+            loadLevel("Title");
         }
 	}
 	
@@ -141,16 +144,8 @@ public class GameManager : MonoBehaviour
      */
     private void leaveState()
     {
-        if (currentState == State.GAME_INIT)
-        {
-            cam.gameObject.SetActive(false);
-            player.SetActive(false);
-        }
-        else if (currentState == State.MAIN_MENU)
-        {
-            cam.gameObject.SetActive(true);
-            player.SetActive(true);
-        }
+        if (currentState == State.GAME_INIT) { } // intentionally empty
+        else if (currentState == State.MAIN_MENU)  { }
         else if (currentState == State.IN_LEVEL)
         {
             spawnPoint = null;
@@ -178,23 +173,18 @@ public class GameManager : MonoBehaviour
         {
             levelTimer = 0;
             deaths = 0;
-            playerWolf.enabled = true;
+            playerWolf.allowMovement(true);
         }
         else if (nextState == State.LEVEL_ENDING)
         {
-            playerWolf.enabled = false;
             levelEnd.show();
         }
         else if (nextState == State.LEVEL_LOADING)
         {
             playerWolf.phaseIn();
+            playerWolf.allowMovement(false);
         }
-        else if (nextState == State.MAIN_MENU)
-        {
-            cam.gameObject.SetActive(false);
-            player.SetActive(false);
-            SceneManager.LoadScene("Title");
-        }
+        else if (nextState == State.MAIN_MENU) { }// intentionally empty
 
         currentState = nextState;
     }
@@ -224,6 +214,7 @@ public class GameManager : MonoBehaviour
         if (levelName == "" || levelName == "Title")
         {
             transitionState(State.MAIN_MENU);
+            SceneManager.LoadScene("Title");
             return;
         }
 
@@ -253,10 +244,28 @@ public class GameManager : MonoBehaviour
      */
     public void onSceneLoaded(Scene scene, LoadSceneMode mode)
     {
+        loadingScreen.fadeOut();
         if (currentState == State.LEVEL_LOADING)
         {
             transitionState(State.LEVEL_STARTING);
         }
+        else if (currentState == State.MAIN_MENU)
+        {
+            cameraFollowing.target = player;
+            playerWolf.allowMovement(false);
+            playerWolf.phaseIn();
+            SpawnPoint spawn = FindObjectOfType<SpawnPoint>();
+            spawnPoint = spawn.gameObject;
+            playerWolf.turn(spawnPoint.transform.position, spawn.faceLeft);
+            loadingScreen.fadePanel.OnFinish += OnMainMenuFadeFinished;
+        }
+    }
+
+    private void OnMainMenuFadeFinished()
+    {
+        loadingScreen.fadePanel.OnFinish -= OnMainMenuFadeFinished;
+        //playerWolf.allowMovement(true);
+        mainMenu.show();
     }
 
     /**

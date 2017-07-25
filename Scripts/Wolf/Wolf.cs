@@ -20,6 +20,7 @@ public class Wolf : MonoBehaviour
     public string jumpingSFX = "";
     private FMOD.Studio.EventInstance ev_jumping;
 
+    private Ghosting ghosting;
     private Animator anim;
     private Vector3 vec_move, vec_jump, vec_down, vec_offset, vec_turn;
     private Rigidbody rb;
@@ -45,6 +46,7 @@ public class Wolf : MonoBehaviour
         vec_turn = new Vector3(0, 90, 0);
         rb = GetComponent<Rigidbody>();
         coll = GetComponent<BoxCollider>();
+        ghosting = GetComponent<Ghosting>();
         anim = GetComponent<Animator>();
         ev_running = FMODUnity.RuntimeManager.CreateInstance(runningSFX);
         ev_jumping = FMODUnity.RuntimeManager.CreateInstance(jumpingSFX);
@@ -84,7 +86,7 @@ public class Wolf : MonoBehaviour
 
         if (Input.GetButtonDown("Dash") && hasDash)
         {
-            GetComponent<Ghosting>().enabled = true;
+            ghosting.enabled = true;
             dashTimer = dashLength;
             hasDash = false;
         }
@@ -93,7 +95,7 @@ public class Wolf : MonoBehaviour
             mult = dashMultiplier;
             dashTimer -= Time.deltaTime;
             if (dashTimer <= 0)
-                GetComponent<Ghosting>().enabled = false;
+                ghosting.enabled = false;
         }
 
         vec_move.Set(0, 0, 0);
@@ -210,7 +212,8 @@ public class Wolf : MonoBehaviour
         coll.enabled = false;
         doMove = false;
         isPhasedOut = true;
-        
+        ghosting.enabled = false;
+
         // TODO create fancy shader effect to show the wolf actually phasing out.
     }
 
@@ -225,5 +228,14 @@ public class Wolf : MonoBehaviour
         rb.useGravity = true;
         coll.enabled = true;
         doMove = true;
+    }
+
+    /**
+     * Lets the wolf move or not. If movement is true, then the wolf will move forward. If movement
+     * is false, then the wolf will remain stationary, but still be affected by gravity.
+     */
+    public void allowMovement(bool movement)
+    {
+        doMove = movement;
     }
 }

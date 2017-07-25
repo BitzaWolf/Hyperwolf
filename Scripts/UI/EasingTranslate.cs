@@ -23,6 +23,9 @@ public class EasingTranslate : Easing
         // already accomplished from where it should be now, thus translation = previous - current.
         float val = easingCurve.Evaluate(timer / animationLength) * translationAmount;
         float translation = val - previousVal;
+
+        if (playBackwards)
+            translation *= -1;
         
         gameObject.transform.Translate(translateDirection * translation, space);
 
@@ -35,8 +38,10 @@ public class EasingTranslate : Easing
      */
     protected override void resetAnimation()
     {
+        float resetVal = playBackwards ? animationLength : 0;
+
         space = useLocalSpace ? Space.Self : Space.World;
-        previousVal = easingCurve.Evaluate(0) * translationAmount;
+        previousVal = easingCurve.Evaluate(resetVal) * translationAmount;
     }
 
     /**

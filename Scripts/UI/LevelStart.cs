@@ -8,14 +8,13 @@ using UnityEngine.UI;
 
 public class LevelStart : MonoBehaviour
 {
-    public Image fadePanel, pnl_Text;
+    public Image pnl_Text;
     public Text txt_name, txt_ready, txt_go;
 
     private bool secondPanelMovement = false;
 
     void Start()
     {
-        fadePanel.GetComponent<EasingTransparency>().OnFinish += onFadeFinish;
         pnl_Text.GetComponent<EasingTranslate>().OnFinish += onPanelFinished;
         txt_ready.GetComponent<EasingTranslate>().OnFinish += onReadyFinished;
         txt_go.GetComponent<EasingTranslate>().OnFinish += onGoFinished;
@@ -28,7 +27,7 @@ public class LevelStart : MonoBehaviour
      */
     public void show()
     {
-        fadePanel.GetComponent<Easing>().Play();
+        GameManager.i().loadingScreen.fadePanel.OnFinish += onFadeFinish; // already fading out, from GM transition state
 
         txt_name.text = GameManager.i().levelMetadata.levelName;
         txt_name.GetComponent<Easing>().Reset();
@@ -39,6 +38,7 @@ public class LevelStart : MonoBehaviour
 
     private void onFadeFinish()
     {
+        GameManager.i().loadingScreen.fadePanel.OnFinish -= onFadeFinish;
         pnl_Text.GetComponent<Easing>().Play();
         txt_name.GetComponent<Easing>().Play();
     }
