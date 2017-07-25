@@ -25,6 +25,6 @@ public class LoadingScreen : MonoBehaviour
 
     private void OnFadeFinish()
     {
-        gameObject.SetActive(false);
+        //gameObject.SetActive(false);
     }
 }
