@@ -60,6 +60,7 @@ public class GameManager : MonoBehaviour
     public LevelEnd levelEnd;
     public LevelStart levelStart;
     public MainMenu mainMenu;
+    public PauseMenu pauseMenu;
     public LoadingScreen loadingScreen;
     public GameObject eventSystem;
     public string nextLevel;
@@ -70,6 +71,11 @@ public class GameManager : MonoBehaviour
     [Space]
     [Header("Debug")]
     public bool debugMode = true;
+
+    /************
+     * Privates *
+     ************/
+    private State previousState = State.GAME_INIT;
 
 
     void Start ()
@@ -134,10 +140,20 @@ public class GameManager : MonoBehaviour
     private void updateInLevel()
     {
         levelTimer += Time.deltaTime;
+        if (Input.GetButtonDown("Cancel"))
+        {
+            pauseGame();
+        }
     }
 
     private void updateEndingLevel() { } // see LevelEnd
-    private void updatePaused() { }
+    private void updatePaused()
+    {
+        if (Input.GetButtonDown("Cancel"))
+        {
+            unPauseGame();
+        }
+    }
 
     /**
      * Perform cleanup required for leaving whatever state we're in.
@@ -151,6 +167,11 @@ public class GameManager : MonoBehaviour
             spawnPoint = null;
             lastCheckpoint = null;
         }
+        else if (currentState == State.PAUSED)
+        {
+            playerWolf.setPaused(false);
+        }
+        previousState = currentState;
     }
 
     /**
@@ -174,6 +195,10 @@ public class GameManager : MonoBehaviour
             levelTimer = 0;
             deaths = 0;
             playerWolf.allowMovement(true);
+        }
+        else if (nextState == State.PAUSED)
+        {
+            playerWolf.setPaused(true);
         }
         else if (nextState == State.LEVEL_ENDING)
         {
@@ -239,6 +264,32 @@ public class GameManager : MonoBehaviour
     }
 
     /**
+     * Opens the pause menu and changes the game state to paused, saving whatever state the game is currently in.
+     * If the game state is already paused, nothing happens.
+     */
+    public void pauseGame()
+    {
+        if (currentState == State.PAUSED)
+            return;
+
+        pauseMenu.Show();
+        transitionState(State.PAUSED);
+    }
+
+    /**
+     * Closes the pause menu and resumes the current level/state.
+     * If the game state is not currently paused, this method does nothing.
+     */
+    public void unPauseGame()
+    {
+        if (currentState != State.PAUSED)
+            return;
+
+        pauseMenu.Hide();
+        transitionState(previousState);
+    }
+
+    /**
      * This is called from Unity's C# delegate event for a scene
      * being loaded.
      */
@@ -264,7 +315,6 @@ public class GameManager : MonoBehaviour
     private void OnMainMenuFadeFinished()
     {
         loadingScreen.fadePanel.OnFinish -= OnMainMenuFadeFinished;
-        //playerWolf.allowMovement(true);
         mainMenu.show();
     }
 

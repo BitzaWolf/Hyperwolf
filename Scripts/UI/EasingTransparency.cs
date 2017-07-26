@@ -12,7 +12,6 @@ public class EasingTransparency : Easing
     protected override void updateAnimation(float timer)
     {
         float alpha = easingCurve.Evaluate(timer / animationLength);
-        Debug.Log("a:" + alpha);
 
         if (text != null)
         {

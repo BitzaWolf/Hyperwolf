@@ -12,13 +12,7 @@ public class Wolf : MonoBehaviour
     public float dashMultiplier = 2;
     // Direction player is facing. Semmantically easier than interpreting rotation info.
     public bool isRunningLeft = false;
-
-    [FMODUnity.EventRef]
-    public string runningSFX = "";
-    private FMOD.Studio.EventInstance ev_running;
-    [FMODUnity.EventRef]
-    public string jumpingSFX = "";
-    private FMOD.Studio.EventInstance ev_jumping;
+    public FMODUnity.StudioEventEmitter fm_running, fm_air;
 
     private Ghosting ghosting;
     private Animator anim;
@@ -32,6 +26,10 @@ public class Wolf : MonoBehaviour
         doMove = true,
         isPhasedOut = false;
     private float dashTimer = 0;
+
+    // State for when we pause/unpause the game
+    private bool isPaused = false;
+    private Vector3 unpause_velocity = new Vector3();
 
     /**
      * Initialize a few variables.
@@ -48,13 +46,11 @@ public class Wolf : MonoBehaviour
         coll = GetComponent<BoxCollider>();
         ghosting = GetComponent<Ghosting>();
         anim = GetComponent<Animator>();
-        ev_running = FMODUnity.RuntimeManager.CreateInstance(runningSFX);
-        ev_jumping = FMODUnity.RuntimeManager.CreateInstance(jumpingSFX);
-        ev_running.set3DAttributes(new FMOD.ATTRIBUTES_3D());
-        FMODUnity.RuntimeManager.AttachInstanceToGameObject(ev_running, transform, rb);
-        FMODUnity.RuntimeManager.AttachInstanceToGameObject(ev_jumping, transform, rb);
-        ev_running.start(); // TODO need to set FMOD attenuation
-        ev_jumping.start();
+    }
+
+    private void printVec(string name, FMOD.VECTOR v)
+    {
+        Debug.Log(name + "(" + v.x + ", " + v.y + ", " + v.z + ")");
     }
 
     void Update()
@@ -121,8 +117,13 @@ public class Wolf : MonoBehaviour
         bool nextState = Physics.Raycast(transform.position + vec_offset, vec_down, 10f);
         if (!onGround && nextState)
         {
-            ev_jumping.stop(FMOD.Studio.STOP_MODE.IMMEDIATE);
-            ev_running.start();
+            fm_air.Stop();
+            fm_running.Play();
+        }
+        else if (onGround && !nextState)
+        {
+            fm_air.Play();
+            fm_running.Stop();
         }
         onGround = nextState;
         if (!hasDash && onGround)
@@ -140,8 +141,8 @@ public class Wolf : MonoBehaviour
         {
             anim.SetTrigger("JumpPressed");
             rb.AddForce(vec_jump);
-            ev_running.stop(FMOD.Studio.STOP_MODE.IMMEDIATE);
-            ev_jumping.start();
+            fm_air.Play();
+            fm_running.Stop();
         }
     }
 
@@ -237,5 +238,32 @@ public class Wolf : MonoBehaviour
     public void allowMovement(bool movement)
     {
         doMove = movement;
+    }
+
+    /**
+     * Lets the wolf completely pause, stopping all movement, physics, and animations. If isPaused is false,
+     * then the wolf resumes movement, physics, and animations.
+     */
+    public void setPaused(bool setPaused)
+    {
+        if (!isPaused && setPaused)
+        {
+            rb.useGravity = false;
+            unpause_velocity = rb.velocity;
+            rb.velocity = new Vector3();
+            coll.enabled = false;
+            doMove = false;
+            anim.speed = 0;
+            isPaused = true;
+        }
+        else if (isPaused && !setPaused)
+        {
+            rb.useGravity = true;
+            rb.velocity = unpause_velocity;
+            coll.enabled = true;
+            doMove = true;
+            anim.speed = 1;
+            isPaused = false;
+        }
     }
 }
