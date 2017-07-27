@@ -40,7 +40,11 @@ public class Follow : MonoBehaviour
             updateCameraPosition();
         
         if (target != null)
-            transform.position = target.transform.position - curOffset;
+        {
+            Vector3 tarPos = target.transform.position;
+            tarPos.y = 0;
+            transform.position = tarPos - curOffset;
+        }
 	}
 
     private void updateCameraPosition()

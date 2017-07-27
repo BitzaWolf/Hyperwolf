@@ -8,24 +8,39 @@ public class Wolf : MonoBehaviour
     public float runSpeed = 60;
     public float jumpForce = 13;
     public float dashLength = 0.5f;
+    [Tooltip("How far below the player to check if they're on something solid.")]
+    public float groundCheckDistance = 5f;
+    [Tooltip("How far below the player to check to see if they're about to land.")]
+    public float aboutToLandCheckDistance = 10f;
     // How much faster should the player run when dashing?
     public float dashMultiplier = 2;
     // Direction player is facing. Semmantically easier than interpreting rotation info.
     public bool isRunningLeft = false;
     public FMODUnity.StudioEventEmitter fm_running, fm_air;
+    [Range(0, 1)]
+    [Tooltip("How much time from when the player is detected in air, but can still jump.")]
+    public float jumpBuffer = 0.3f;
+    public int maxAirCharges = 1;
 
     private Ghosting ghosting;
     private Animator anim;
     private Vector3 vec_move, vec_jump, vec_down, vec_offset, vec_turn;
     private Rigidbody rb;
     private BoxCollider coll;
-    private bool onGround = true,
+    private bool
+        onGround = true,
         hasDash = true,
         wantsToTurnLeft = false,
         wantsToTurnRight = false,
         doMove = true,
-        isPhasedOut = false;
-    private float dashTimer = 0;
+        isPhasedOut = false,
+        aboutToLand = false;
+    private float
+        dashTimer = 0,
+        jumpBufferTimer = 0,
+        timeInAir = 0;
+    private int
+        airCharges = 0;
 
     // State for when we pause/unpause the game
     private bool isPaused = false;
@@ -46,6 +61,8 @@ public class Wolf : MonoBehaviour
         coll = GetComponent<BoxCollider>();
         ghosting = GetComponent<Ghosting>();
         anim = GetComponent<Animator>();
+        jumpBufferTimer = jumpBuffer;
+        airCharges = maxAirCharges;
     }
 
     private void printVec(string name, FMOD.VECTOR v)
@@ -56,6 +73,7 @@ public class Wolf : MonoBehaviour
     void Update()
     {
         moveWolf();
+        checkAboutToLand();
         checkForGround();
         checkJump();
         checkTurnInput();
@@ -107,6 +125,28 @@ public class Wolf : MonoBehaviour
     }
 
     /**
+     * Checks to see if the player is about to land. If they are, we need to switch to the landing
+     * animation. Otherwise the landing animation (transitioning from being in the air) will
+     * play while they're on the ground, which looks wrong.
+     */
+    private void checkAboutToLand()
+    {
+        if (onGround)
+            return;
+
+        // Don't perform the check ASAP, wait a bit. This prevents the anim from changing as soon as the player jumps.
+        timeInAir += Time.deltaTime;
+        if (timeInAir <= 0.5f)
+            return;
+
+        aboutToLand = Physics.Raycast(transform.position + vec_offset, Vector3.Normalize(vec_down + transform.forward), aboutToLandCheckDistance);
+        if (aboutToLand)
+        {
+            anim.SetBool("InAir", false);
+        }
+    }
+
+    /**
      * Checks to see if there is ground reasonably below the player. If so, they can jump and should
      * be in a running animation. If not, they should be in a falling animation.
      * Ground is checked via a Raycast. This lets us use any solid physics object as a suitable
@@ -114,11 +154,19 @@ public class Wolf : MonoBehaviour
      */
     private void checkForGround()
     {
-        bool nextState = Physics.Raycast(transform.position + vec_offset, vec_down, 10f);
+        bool nextState = Physics.Raycast(transform.position + vec_offset, vec_down, groundCheckDistance);
+        bool groundBuffer = jumpBufferTimer >= 0;
         if (!onGround && nextState)
         {
+            jumpBufferTimer = jumpBuffer;
+            airCharges = maxAirCharges;
             fm_air.Stop();
             fm_running.Play();
+            Vector3 vel = rb.velocity;
+            vel.y = 0;
+            rb.velocity = vel;
+            timeInAir = 0;
+            aboutToLand = false;
         }
         else if (onGround && !nextState)
         {
@@ -131,18 +179,30 @@ public class Wolf : MonoBehaviour
             hasDash = true;
         }
 
-        // TODO minor optimization, only set the variable when the ground status -changes-.
-        anim.SetBool("InAir", !onGround);
+        // Although setting every update cycle, fixes edge cases where the player barely misses landing,
+        // which sets inAir to false without ever actually landing, so we can't just set on the onground-offground
+        // transition. TLDR: bad programming, but it works and other higher priorities.
+        if (!aboutToLand && !groundBuffer)
+        {
+            anim.SetBool("InAir", !onGround);
+            //anim.ResetTrigger("JumpPressed");
+        }
     }
     
     private void checkJump()
     {
-        if (Input.GetButtonDown("Jump") && onGround)
+        bool groundBuffer = jumpBufferTimer >= 0;
+        if (!onGround && jumpBufferTimer > 0)
+        {
+            jumpBufferTimer -= Time.deltaTime;
+        }
+        if (Input.GetButtonDown("Jump") && groundBuffer && airCharges > 0)
         {
             anim.SetTrigger("JumpPressed");
             rb.AddForce(vec_jump);
             fm_air.Play();
             fm_running.Stop();
+            --airCharges;
         }
     }
 
@@ -265,5 +325,11 @@ public class Wolf : MonoBehaviour
             anim.speed = 1;
             isPaused = false;
         }
+    }
+
+    private void OnDrawGizmos()
+    {
+        Gizmos.color = Color.red;
+        Gizmos.DrawRay(transform.position + vec_offset, Vector3.Normalize(vec_down + transform.forward) * aboutToLandCheckDistance);
     }
 }
