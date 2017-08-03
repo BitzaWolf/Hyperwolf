@@ -33,7 +33,7 @@ public class MainMenu : MonoBehaviour
         // TODO after animate out is done...
         gm.loadingScreen.fadePanel.OnFinish += OnFadeinFinish;
         gm.loadingScreen.fadeIn();
-        gm.playerWolf.phaseOut();
+        gm.playerWolf.setToLevelEndState();
     }
 
     public void onOptionsClicked()

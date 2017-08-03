@@ -188,13 +188,14 @@ public class GameManager : MonoBehaviour
             SpawnPoint spawn = FindObjectOfType<SpawnPoint>();
             spawnPoint = spawn.gameObject;
             playerWolf.turn(spawnPoint.transform.position, spawn.faceLeft);
+            playerWolf.setToLevelStartState();
             levelStart.show();
         }
         else if (nextState == State.IN_LEVEL)
         {
+            playerWolf.triggerLevelStarted();
             levelTimer = 0;
             deaths = 0;
-            playerWolf.allowMovement(true);
         }
         else if (nextState == State.PAUSED)
         {
@@ -202,12 +203,12 @@ public class GameManager : MonoBehaviour
         }
         else if (nextState == State.LEVEL_ENDING)
         {
+            playerWolf.setToLevelEndState();
             levelEnd.show();
         }
         else if (nextState == State.LEVEL_LOADING)
         {
-            playerWolf.phaseIn();
-            playerWolf.allowMovement(false);
+
         }
         else if (nextState == State.MAIN_MENU) { }// intentionally empty
 
@@ -303,8 +304,7 @@ public class GameManager : MonoBehaviour
         else if (currentState == State.MAIN_MENU)
         {
             cameraFollowing.target = player;
-            playerWolf.allowMovement(false);
-            playerWolf.phaseIn();
+            playerWolf.setToLevelStartState();
             SpawnPoint spawn = FindObjectOfType<SpawnPoint>();
             spawnPoint = spawn.gameObject;
             playerWolf.turn(spawnPoint.transform.position, spawn.faceLeft);

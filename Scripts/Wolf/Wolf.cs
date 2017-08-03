@@ -5,223 +5,292 @@ using UnityEngine;
 
 public class Wolf : MonoBehaviour
 {
-    public float runSpeed = 60;
-    public float jumpForce = 13;
-    public float dashLength = 0.5f;
-    [Tooltip("How far below the player to check if they're on something solid.")]
-    public float groundCheckDistance = 5f;
-    [Tooltip("How far below the player to check to see if they're about to land.")]
-    public float aboutToLandCheckDistance = 10f;
-    // How much faster should the player run when dashing?
-    public float dashMultiplier = 2;
-    // Direction player is facing. Semmantically easier than interpreting rotation info.
-    public bool isRunningLeft = false;
-    public FMODUnity.StudioEventEmitter fm_running, fm_air;
-    [Range(0, 1)]
-    [Tooltip("How much time from when the player is detected in air, but can still jump.")]
-    public float jumpBuffer = 0.3f;
-    public int maxAirCharges = 1;
+    public enum State
+    {
+        GRUONDED,
+        FALLING,
+        DASHING,
+        DYING,
+        LEVEL_START,
+        LEVEL_END,
+        PAUSED
+    }
 
-    private Ghosting ghosting;
+    public State currentState = State.GRUONDED;
+    [Tooltip("How long the player is in the dashing state where they cannot act.")]
+    public float dashLengthTime = 0.5f;
+    [Tooltip("How long the death state plays before respawning.")]
+    public float deathLengthTime = 0.3f;
+    [Tooltip("How many seconds the player has after being detected off the ground, but will remain in the grounded state.")]
+    public float groundedBuffer = 0.15f;
+    [Tooltip("How many air charges the player has at their disposal.")]
+    public int maximumAirCharges;
+
+    public FMODUnity.StudioEventEmitter
+        fm_running,
+        fm_air;
+
+    private State previousState;
+
+    private float
+        aboutToLandCheckDistance,
+        airTimer, // how long the player has been airborne, used for animations.
+        dashTimer,
+        deathTimer,
+        groundBufferTimer,
+        groundCheckDistance;
+
+    private bool
+        aboutToLand, // Used to prevent animations from changing rapidly.
+        attackPressed,
+        backwardPressed,
+        dashPressed,
+        forwardPressed,
+        jumpPressed,
+        leftPressed,
+        rightPressed;
+
+    private int currentAirCharges;
+
+    private Vector3
+        vec_down,
+        vec_offset,
+        vec_turn,
+        vec_pauseVelocity;
+
     private Animator anim;
-    private Vector3 vec_move, vec_jump, vec_down, vec_offset, vec_turn;
     private Rigidbody rb;
     private BoxCollider coll;
-    private bool
-        onGround = true,
-        hasDash = true,
-        wantsToTurnLeft = false,
-        wantsToTurnRight = false,
-        doMove = true,
-        isPhasedOut = false,
-        aboutToLand = false;
-    private float
-        dashTimer = 0,
-        jumpBufferTimer = 0,
-        timeInAir = 0;
-    private int
-        airCharges = 0;
 
-    // State for when we pause/unpause the game
-    private bool isPaused = false;
-    private Vector3 unpause_velocity = new Vector3();
-
-    /**
-     * Initialize a few variables.
-     * Vectors are initialized and cached so the game isn't constantly creating new Vector3 objects.
-     */
     private void Start()
     {
-        vec_move = new Vector3();
-        vec_jump = new Vector3(0, jumpForce * GameManager.FORCE_MULT, 0);
-        vec_down = new Vector3(0, -10, 0);
-        vec_offset = new Vector3(0, 1f, 0);
+        previousState = State.GRUONDED;
+        aboutToLandCheckDistance = 20;
+        airTimer = 0;
+        dashTimer = 0;
+        groundBufferTimer = 0;
+        groundCheckDistance = 1;
+        aboutToLand = false;
+        attackPressed = false;
+        backwardPressed = false;
+        dashPressed = false;
+        forwardPressed = false;
+        leftPressed = false;
+        rightPressed = false;
+        currentAirCharges =  maximumAirCharges;
+        vec_down = new Vector3(0, -1, 0);
         vec_turn = new Vector3(0, 90, 0);
+        vec_offset = new Vector3(0, 1, 0);
+        vec_pauseVelocity = new Vector3();
+        anim = GetComponent<Animator>();
         rb = GetComponent<Rigidbody>();
         coll = GetComponent<BoxCollider>();
-        ghosting = GetComponent<Ghosting>();
-        anim = GetComponent<Animator>();
-        jumpBufferTimer = jumpBuffer;
-        airCharges = maxAirCharges;
     }
 
-    private void printVec(string name, FMOD.VECTOR v)
+    private void Update()
     {
-        Debug.Log(name + "(" + v.x + ", " + v.y + ", " + v.z + ")");
-    }
-
-    void Update()
-    {
-        moveWolf();
-        checkAboutToLand();
-        checkForGround();
-        checkJump();
-        checkTurnInput();
-
-        // TODO use a killbox instead. I suppose we could keep this as a backup.
-        if (transform.position.y <= -500)
+        switch (currentState)
         {
-            kill();
+            case State.GRUONDED:    updateGrounded();   break;
+            case State.FALLING:     updateFalling();    break;
+            case State.DASHING:     updateDashing();    break;
+            case State.DYING:       updateDying();      break;
+            case State.LEVEL_START: updateLevelStart(); break;
+            case State.LEVEL_END:   updateLevelEnd();   break;
+            case State.PAUSED:      updatePaused();     break;
         }
+    }
+
+    private void updateGrounded()
+    {
+        checkInputs();
+        // Move forward based on velocity/speed
+        // if no forward/backward pressed, slow down to a stop
+    }
+
+    private void updateFalling()
+    {
+        airTimer += Time.deltaTime;
+        if (airTimer > 0.5f)
+        {
+            checkAndSetAboutToLand();
+            if (aboutToLand)
+                anim.SetBool("InAir", false);
+        }
+
+        checkInputs();
+        // slow down forward movement
+    }
+
+    private void updateDashing()
+    {
+        dashTimer -= Time.deltaTime;
+        
+        if (dashTimer <= 0)
+        {
+            checkForGroundAndTransition();
+        }
+    }
+
+    private void updateDying()
+    {
+        deathTimer -= Time.deltaTime;
+        if (deathTimer <= 0)
+        {
+            GameObject checkpoint = GameManager.i().lastCheckpoint;
+            if (checkpoint == null)
+            {
+                GameObject spawn = GameManager.i().spawnPoint;
+                turn(spawn.transform.position, spawn.GetComponent<SpawnPoint>().faceLeft);
+                return;
+            }
+
+            turn(checkpoint.transform.position, checkpoint.GetComponent<Checkpoint>().faceLeft);
+            transitionState(State.GRUONDED);
+        }
+    }
+
+    private void updateLevelStart()
+    {
+
+    }
+
+    private void updateLevelEnd()
+    {
+
+    }
+
+    private void updatePaused()
+    {
+
+    }
+
+    private void leaveState()
+    {
+        switch (currentState)
+        {
+            case State.GRUONDED:
+                fm_running.Stop();
+                break;
+            case State.FALLING:
+                fm_air.Stop();
+                break;
+            case State.PAUSED:
+                rb.useGravity = true;
+                rb.velocity = vec_pauseVelocity;
+                coll.enabled = true;
+                anim.speed = 1;
+                break;
+        }
+    }
+
+    private void transitionState(State nextState)
+    {
+        leaveState();
+        switch (nextState)
+        {
+            case State.GRUONDED:
+                groundBufferTimer = groundedBuffer;
+                currentAirCharges = maximumAirCharges;
+                Vector3 vel = rb.velocity;
+                vel.y = 0;
+                rb.velocity = vel;
+                airTimer = 0;
+                aboutToLand = false;
+                fm_running.Play();
+                break;
+            case State.FALLING:
+                fm_air.Play();
+                break;
+            case State.DYING:
+                deathTimer = deathLengthTime;
+                break;
+            case State.PAUSED:
+                rb.useGravity = false;
+                vec_pauseVelocity = rb.velocity;
+                rb.velocity.Set(0, 0, 0);
+                coll.enabled = false;
+                anim.speed = 0;
+                break;
+        }
+
+        previousState = currentState;
+        currentState = nextState;
     }
 
     /**
-     * Logic to move the wolf forward. The game actually directly manipulates the transform position instead
-     * of using forces, velocity, or the physics engine in general. The up side of this strategy is that it's
-     * very simple to code, makes it trivial to turn the player instantly, the running speed is set. The down
-     * side is that there are no physics interactions with the wolf along the forward/running direction.
+     * Checks to see if the wolf is on ground and changes the wolf's state to grounded or 
+     * falling appropriately.
+     * This function should only be called once in each state-update function.
      */
-    private void moveWolf()
+    private void checkForGroundAndTransition()
     {
-        if (!doMove)
-            return;
+        bool onGround = Physics.Raycast(transform.position + vec_offset, vec_down, groundCheckDistance);
+        bool groundBufferActive = groundBufferTimer >= 0;
 
-        float mult = 1;
-
-        if (Input.GetButtonDown("Dash") && hasDash)
+        if (currentState == State.GRUONDED && !onGround)
         {
-            ghosting.enabled = true;
-            dashTimer = dashLength;
-            hasDash = false;
+            if (groundBufferActive)
+            {
+                // Don't change to the falling state if the grounded buffer is active.
+                groundBufferTimer -= Time.deltaTime;
+            }
+            else
+                transitionState(State.FALLING);
         }
-        if (dashTimer > 0)
+        else if (currentState == State.FALLING && onGround)
         {
-            mult = dashMultiplier;
-            dashTimer -= Time.deltaTime;
-            if (dashTimer <= 0)
-                ghosting.enabled = false;
-        }
-
-        vec_move.Set(0, 0, 0);
-        if (isRunningLeft)
-        {
-            vec_move.z = runSpeed * mult * Time.deltaTime;
-        }
-        else
-        {
-            vec_move.x = runSpeed * mult * Time.deltaTime;
-        }
-        transform.position += vec_move;
-    }
-
-    /**
-     * Checks to see if the player is about to land. If they are, we need to switch to the landing
-     * animation. Otherwise the landing animation (transitioning from being in the air) will
-     * play while they're on the ground, which looks wrong.
-     */
-    private void checkAboutToLand()
-    {
-        if (onGround)
-            return;
-
-        // Don't perform the check ASAP, wait a bit. This prevents the anim from changing as soon as the player jumps.
-        timeInAir += Time.deltaTime;
-        if (timeInAir <= 0.5f)
-            return;
-
-        aboutToLand = Physics.Raycast(transform.position + vec_offset, Vector3.Normalize(vec_down + transform.forward), aboutToLandCheckDistance);
-        if (aboutToLand)
-        {
-            anim.SetBool("InAir", false);
-        }
-    }
-
-    /**
-     * Checks to see if there is ground reasonably below the player. If so, they can jump and should
-     * be in a running animation. If not, they should be in a falling animation.
-     * Ground is checked via a Raycast. This lets us use any solid physics object as a suitable
-     * ground!
-     */
-    private void checkForGround()
-    {
-        bool nextState = Physics.Raycast(transform.position + vec_offset, vec_down, groundCheckDistance);
-        bool groundBuffer = jumpBufferTimer >= 0;
-        if (!onGround && nextState)
-        {
-            jumpBufferTimer = jumpBuffer;
-            airCharges = maxAirCharges;
-            fm_air.Stop();
-            fm_running.Play();
-            Vector3 vel = rb.velocity;
-            vel.y = 0;
-            rb.velocity = vel;
-            timeInAir = 0;
-            aboutToLand = false;
-        }
-        else if (onGround && !nextState)
-        {
-            fm_air.Play();
-            fm_running.Stop();
-        }
-        onGround = nextState;
-        if (!hasDash && onGround)
-        {
-            hasDash = true;
+            transitionState(State.GRUONDED);
         }
 
         // Although setting every update cycle, fixes edge cases where the player barely misses landing,
         // which sets inAir to false without ever actually landing, so we can't just set on the onground-offground
         // transition. TLDR: bad programming, but it works and other higher priorities.
-        if (!aboutToLand && !groundBuffer)
+        if (!aboutToLand && !groundBufferActive)
         {
             anim.SetBool("InAir", !onGround);
             //anim.ResetTrigger("JumpPressed");
         }
     }
-    
-    private void checkJump()
-    {
-        bool groundBuffer = jumpBufferTimer >= 0;
-        if (!onGround && jumpBufferTimer > 0)
-        {
-            jumpBufferTimer -= Time.deltaTime;
-        }
-        if (Input.GetButtonDown("Jump") && groundBuffer && airCharges > 0)
-        {
-            anim.SetTrigger("JumpPressed");
-            rb.AddForce(vec_jump);
-            fm_air.Play();
-            fm_running.Stop();
-            --airCharges;
-        }
-    }
 
-    private void checkTurnInput()
+    /**
+     * Checks to see if the wolf is about to land (not if they're on ground), and sets the
+     * result to the private member aboutToLand.
+     */
+    private void checkAndSetAboutToLand()
     {
-        wantsToTurnLeft = Input.GetAxis("Horizontal") < 0;
-        wantsToTurnRight = Input.GetAxis("Horizontal") > 0;
+        aboutToLand = Physics.Raycast(transform.position + vec_offset, Vector3.Normalize(vec_down * 10 + transform.forward), aboutToLandCheckDistance);
     }
 
     /**
-     * Checks to see if the player wants to turn in a certain direction or not.
-     * Returns true if the player wants to turn in the direction specified.
+     * Checks to see if any inputs have been pressed, setting private bool members to the appropriate state
+     * if they are pressed or not.
+     * This function does not perform any actions based on the inputs.
+     */
+    private void checkInputs()
+    {
+        float vertical = Input.GetAxis("Vertical");
+        float horizontal = Input.GetAxis("Horizontal");
+        forwardPressed = vertical > 0;
+        backwardPressed = vertical < 0;
+        leftPressed = horizontal < 0;
+        rightPressed = horizontal > 0;
+        attackPressed = Input.GetButtonDown("Attack");
+        jumpPressed = Input.GetButtonDown("Jump");
+        dashPressed = Input.GetButtonDown("Dash");
+    }
+
+    /**
+     * Returns true if the player wants to and is in a state to be able to turn the intended direction.
+     * The player can only turn when they are on the ground (the GROUNDED state).
+     * @param direction True if the direction to check is left, false if right.
+     * @returns True if the player wants to (pressed the correct input) and is in a state to turn the queried
+     * direction.
      */
     public bool wantsToTurn(bool turnLeft)
     {
-        if (!onGround)
-            return false;
-
-        return (turnLeft) ? wantsToTurnLeft : wantsToTurnRight;
+        bool inputPressed = (turnLeft && leftPressed) || (!turnLeft && rightPressed);
+        return (inputPressed && currentState == State.GRUONDED);
     }
 
     /**
@@ -229,107 +298,54 @@ public class Wolf : MonoBehaviour
      * the wolf is snapped into place at the specified position. This is used to keep the
      * player centered on the track since turn commands are only issued from invisible
      * Turn gameobjects, which are placed on tracks at intersections/corners.
+     * @param Vector3 position new position to center the player at.
+     * @param bool turnLeft If the wolf should turn left.
      */
-    public void turn(Vector3 position, bool faceLeft)
+    public void turn(Vector3 position, bool turnLeft)
     {
         Vector3 pos = new Vector3(position.x, 0, position.z);
         transform.position = pos;
-        if (isRunningLeft == faceLeft)
-            return; // we're already facing the new direction.
 
-        float mult = faceLeft ? -1 : 1;
+        float mult = turnLeft ? -1 : 1;
         transform.Rotate(vec_turn * mult);
-        isRunningLeft = faceLeft;
-        GameManager.i().cameraFollowing.SetOrientation(!faceLeft);
+        GameManager.i().cameraFollowing.SetOrientation(!turnLeft);
     }
 
     /**
-     * Kill the wolf, warping them back to the last checkpoint, or Spawn if no checkpoint
-     * has been touched yet.
+     * Kills the player instantly, entering the killed-state.
+     * After some time, the player is respawned at the last checkpoint or
+     * initial spawn.
      */
     public void kill()
     {
+        transitionState(State.DYING);
         GameManager.i().deaths += 1;
-
-        GameObject checkpoint = GameManager.i().lastCheckpoint;
-        if (checkpoint == null)
-        {
-            GameObject spawn = GameManager.i().spawnPoint;
-            turn(spawn.transform.position, spawn.GetComponent<SpawnPoint>().faceLeft);
-            return;
-        }
-        
-        turn(checkpoint.transform.position, checkpoint.GetComponent<Checkpoint>().faceLeft);
     }
 
     /**
-     * Disables the wolf and frees it of all collision. This is a handy effect for finishing
-     * a level or touching an object that should kill the wolf.
-     */
-    public void phaseOut()
-    {
-        // disable gravity (honestly, all physics)
-        rb.useGravity = false;
-        coll.enabled = false;
-        doMove = false;
-        isPhasedOut = true;
-        ghosting.enabled = false;
-
-        // TODO create fancy shader effect to show the wolf actually phasing out.
-    }
-
-    /**
-     * Undoes the effects caused by phaseOut().
-     */
-    public void phaseIn()
-    {
-        if (!isPhasedOut)
-            return;
-
-        rb.useGravity = true;
-        coll.enabled = true;
-        doMove = true;
-    }
-
-    /**
-     * Lets the wolf move or not. If movement is true, then the wolf will move forward. If movement
-     * is false, then the wolf will remain stationary, but still be affected by gravity.
-     */
-    public void allowMovement(bool movement)
-    {
-        doMove = movement;
-    }
-
-    /**
-     * Lets the wolf completely pause, stopping all movement, physics, and animations. If isPaused is false,
-     * then the wolf resumes movement, physics, and animations.
+     * Sets the wolf's state to paused or unpaused based on setPaused.
+     * @param setPaused True if the wolf should be paused, false otherwise.
      */
     public void setPaused(bool setPaused)
     {
-        if (!isPaused && setPaused)
-        {
-            rb.useGravity = false;
-            unpause_velocity = rb.velocity;
-            rb.velocity = new Vector3();
-            coll.enabled = false;
-            doMove = false;
-            anim.speed = 0;
-            isPaused = true;
-        }
-        else if (isPaused && !setPaused)
-        {
-            rb.useGravity = true;
-            rb.velocity = unpause_velocity;
-            coll.enabled = true;
-            doMove = true;
-            anim.speed = 1;
-            isPaused = false;
-        }
+        if (setPaused && currentState != State.PAUSED)
+            transitionState(State.PAUSED);
+        else if (!setPaused && currentState == State.PAUSED)
+            transitionState(previousState);
     }
 
-    private void OnDrawGizmos()
+    public void setToLevelStartState()
     {
-        Gizmos.color = Color.red;
-        Gizmos.DrawRay(transform.position + vec_offset, Vector3.Normalize(vec_down + transform.forward) * aboutToLandCheckDistance);
+        transitionState(State.LEVEL_START);
+    }
+
+    public void setToLevelEndState()
+    {
+        transitionState(State.LEVEL_END);
+    }
+
+    public void triggerLevelStarted()
+    {
+        transitionState(State.GRUONDED);
     }
 }

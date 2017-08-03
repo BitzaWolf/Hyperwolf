@@ -23,7 +23,7 @@ public class Goal : MonoBehaviour
         {
             GameManager gm = GameManager.i();
             gm.triggerLevelEnd(nextLevel);
-            gm.playerWolf.phaseOut();
+            gm.playerWolf.setToLevelEndState();
             gm.cameraFollowing.target = gameObject;
         }
     }
