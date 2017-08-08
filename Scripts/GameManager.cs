@@ -187,7 +187,8 @@ public class GameManager : MonoBehaviour
             levelMetadata = FindObjectOfType<LevelMetadata>();
             SpawnPoint spawn = FindObjectOfType<SpawnPoint>();
             spawnPoint = spawn.gameObject;
-            playerWolf.turn(spawnPoint.transform.position, spawn.faceLeft);
+            playerWolf.setFacingDirection(spawn.facingDirection);
+            playerWolf.setPosition(spawn.transform.position);
             playerWolf.setToLevelStartState();
             levelStart.show();
         }
@@ -307,7 +308,8 @@ public class GameManager : MonoBehaviour
             playerWolf.setToLevelStartState();
             SpawnPoint spawn = FindObjectOfType<SpawnPoint>();
             spawnPoint = spawn.gameObject;
-            playerWolf.turn(spawnPoint.transform.position, spawn.faceLeft);
+            playerWolf.setFacingDirection(spawn.facingDirection);
+            playerWolf.setPosition(spawn.transform.position);
             loadingScreen.fadePanel.OnFinish += OnMainMenuFadeFinished;
         }
     }

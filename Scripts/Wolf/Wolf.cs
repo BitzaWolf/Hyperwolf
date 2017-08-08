@@ -48,9 +48,13 @@ public class Wolf : MonoBehaviour
         fm_running,
         fm_air;
 
+    [Header("Privates")]
+    [SerializeField]
     private State previousState;
+    [SerializeField]
     private FacingDir facingDirection;
 
+    [SerializeField]
     private float
         aboutToLandCheckDistance,
         airTimer, // how long the player has been airborne, used for animations.
@@ -61,6 +65,7 @@ public class Wolf : MonoBehaviour
         speed,
         speedTierTimer;
 
+    [SerializeField]
     private bool
         aboutToLand, // Used to prevent animations from changing rapidly.
         attackPressed,
@@ -69,15 +74,14 @@ public class Wolf : MonoBehaviour
         forwardPressed,
         jumpPressed,
         leftPressed,
-        rightPressed,
-        canTurn;
+        rightPressed;
 
-    [Header("Privates")]
     [SerializeField]
     private int
         currentAirCharges,
         currentRunTier;
 
+    [SerializeField]
     private Vector3
         vec_down,
         vec_forward,
@@ -88,6 +92,7 @@ public class Wolf : MonoBehaviour
     private Animator anim;
     private Rigidbody rb;
     private BoxCollider coll;
+    private Turn turnTrigger; // gets set when we enter a turn trigger
 
     private void Start()
     {
@@ -108,17 +113,17 @@ public class Wolf : MonoBehaviour
         forwardPressed = false;
         leftPressed = false;
         rightPressed = false;
-        canTurn = false;
         currentAirCharges =  maximumAirCharges;
         currentRunTier = -1;
         vec_down = new Vector3(0, -1, 0);
-        vec_forward = -transform.right;
+        vec_forward = new Vector3(0, 0, 1);
         vec_turn = new Vector3(0, 90, 0);
         vec_offset = new Vector3(0, 1, 0);
         vec_pauseVelocity = new Vector3();
         anim = GetComponent<Animator>();
         rb = GetComponent<Rigidbody>();
         coll = GetComponent<BoxCollider>();
+        turnTrigger = null;
     }
 
     private void Update()
@@ -148,7 +153,8 @@ public class Wolf : MonoBehaviour
         }
         if (backwardPressed && !forwardPressed)
         {
-            //
+            // 1) Slow down to a stop
+            // 2) If stopped (or nearly) change facing direction to backwards
         }
         if (!forwardPressed && !backwardPressed) // neither forward no backward pressed
         {
@@ -173,9 +179,9 @@ public class Wolf : MonoBehaviour
         {
             // TODO activate hitbox and all.
         }
-        if (leftPressed || rightPressed && canTurn)
+        if ((leftPressed || rightPressed) && turnTrigger != null)
         {
-            //turn();
+            turn();
         }
 
         // set anim speed to current velocity.
@@ -217,12 +223,16 @@ public class Wolf : MonoBehaviour
             GameObject checkpoint = GameManager.i().lastCheckpoint;
             if (checkpoint == null)
             {
-                GameObject spawn = GameManager.i().spawnPoint;
-                turn(spawn.transform.position, spawn.GetComponent<SpawnPoint>().faceLeft);
+                SpawnPoint spawn = GameManager.i().spawnPoint.GetComponent<SpawnPoint>();
+                setFacingDirection(spawn.facingDirection);
+                setPosition(spawn.transform.position);
+                transitionState(State.GRUONDED);
                 return;
             }
 
-            turn(checkpoint.transform.position, checkpoint.GetComponent<Checkpoint>().faceLeft);
+            Checkpoint cp = checkpoint.GetComponent<Checkpoint>();
+            setFacingDirection(cp.getFacingDirection());
+            setPosition(cp.transform.position);
             transitionState(State.GRUONDED);
         }
     }
@@ -387,8 +397,14 @@ public class Wolf : MonoBehaviour
      */
     private void checkInputs()
     {
-        float vertical = Input.GetAxis("Vertical");
-        float horizontal = Input.GetAxis("Horizontal");
+        // MAYBE INCLUDE AS AN OPTION?
+        // we need to invert the forward/backward based on if the wolf is facing up or down.
+        // If they're facing up, positive vertical values produce forward input.
+        // If they're facing down, positive vertical values produce backward input.
+        //bool isFacingUp = facingDirection == FacingDir.UP_LEFT || facingDirection == FacingDir.UP_RIGHT;
+        int mult = 1; // isFacingUp ? 1 : -1;
+        float vertical = Input.GetAxis("Vertical") * mult;
+        float horizontal = Input.GetAxis("Horizontal") * mult;
         forwardPressed = vertical > 0;
         backwardPressed = vertical < 0;
         leftPressed = horizontal < 0;
@@ -399,37 +415,90 @@ public class Wolf : MonoBehaviour
     }
 
     /**
-     * Turns the wolf so now they are running in a new direction. Additionally,
-     * the wolf is snapped into place at the specified position. This is used to keep the
-     * player centered on the track since turn commands are only issued from invisible
-     * Turn gameobjects, which are placed on tracks at intersections/corners.
-     * @param Vector3 position new position to center the player at.
-     * @param bool turnLeft If the wolf should turn left.
+     * Turns the wolf so now they are running in a new direction based on current inputs
+     * and the turnTrigger we're currently inside.
+     * @see Turn.cs for more information.
      */
-    public void turn(Vector3 position, bool turnLeft)
+    private void turn()
     {
-        Vector3 pos = new Vector3(position.x, 0, position.z);
-        transform.position = pos;
-
-        float mult = turnLeft ? -1 : 1;
-        transform.Rotate(vec_turn * mult);
-        
-        switch (facingDirection)
+        if (turnTrigger == null)
         {
-            case FacingDir.UP_RIGHT:   facingDirection = turnLeft ? FacingDir.UP_LEFT : FacingDir.DOWN_RIGHT; break;
-            case FacingDir.UP_LEFT:    facingDirection = turnLeft ? FacingDir.DOWN_LEFT : FacingDir.UP_RIGHT; break;
-            case FacingDir.DOWN_RIGHT: facingDirection = turnLeft ? FacingDir.UP_RIGHT : FacingDir.DOWN_LEFT; break;
-            case FacingDir.DOWN_LEFT:  facingDirection = turnLeft ? FacingDir.DOWN_RIGHT : FacingDir.UP_LEFT; break;
+            Debug.LogWarning("A call to turn, but no turnTrigger object is set!");
+            return;
         }
 
+        FacingDir newDirection = FacingDir.UP_RIGHT;
         switch (facingDirection)
         {
-            case FacingDir.UP_RIGHT:   vec_forward = -transform.right; break;
-            case FacingDir.UP_LEFT:    vec_forward =  transform.forward; break;
-            case FacingDir.DOWN_RIGHT: vec_forward = -transform.forward; break;
-            case FacingDir.DOWN_LEFT:  vec_forward =  transform.right; break;
+            case FacingDir.UP_RIGHT:   newDirection = leftPressed ? FacingDir.UP_LEFT : FacingDir.DOWN_RIGHT; break;
+            case FacingDir.UP_LEFT:    newDirection = leftPressed ? FacingDir.DOWN_LEFT : FacingDir.UP_RIGHT; break;
+            case FacingDir.DOWN_RIGHT: newDirection = leftPressed ? FacingDir.UP_RIGHT : FacingDir.DOWN_LEFT; break;
+            case FacingDir.DOWN_LEFT:  newDirection = leftPressed ? FacingDir.DOWN_RIGHT : FacingDir.UP_LEFT; break;
         }
-        GameManager.i().cameraFollowing.SetOrientation(!turnLeft);
+
+        if (! turnTrigger.allowsDirection(newDirection))
+            return;
+
+        setFacingDirection(newDirection);
+        if (turnTrigger.centerOnTurn)
+            setPosition(turnTrigger.transform.position, true);
+
+        if (turnTrigger.onlyTurnOnce)
+            turnTrigger = null;
+    }
+
+    /**
+     * Sets the direction the wolf is facing.
+     * Also modifies the camera's position (see cameraFollowing.SetOrientation).
+     * @param newDirection The direction the wolf will face.
+     */
+    public void setFacingDirection(FacingDir newDirection)
+    {
+        facingDirection = newDirection;
+
+        switch (facingDirection)
+        {
+            case FacingDir.UP_RIGHT:
+                vec_turn.Set(0, 90, 0);
+                break;
+
+            case FacingDir.UP_LEFT:
+                vec_turn.Set(0, 0, 0);
+                break;
+
+            case FacingDir.DOWN_RIGHT:
+                vec_turn.Set(0, 180, 0);
+                break;
+
+            case FacingDir.DOWN_LEFT:
+                vec_turn.Set(0, -90, 0);
+                break;
+        }
+
+        transform.rotation = Quaternion.Euler(vec_turn);
+        GameManager.i().cameraFollowing.SetOrientation(!leftPressed);
+    }
+
+    /**
+     * Set's the wolf's position.
+     * @param newPosition The position the wolf will be set to.
+     */
+    public void setPosition(Vector3 newPosition)
+    {
+        setPosition(newPosition, false);
+    }
+
+    /**
+     * Set's the wolf's position to the specified position, ignoring the
+     * new position's y-component if specified.
+     * @param newPosition the position the wolf will be set to.
+     * @param ignoreY True if the wolf's y-component should not be set.
+     */
+    public void setPosition(Vector3 newPosition, bool ignoreY)
+    {
+        if (ignoreY)
+            newPosition.y = transform.position.y;
+        transform.position = newPosition;
     }
 
     /**
@@ -470,6 +539,11 @@ public class Wolf : MonoBehaviour
         transitionState(State.GRUONDED);
     }
 
+    public FacingDir getFacingDirection()
+    {
+        return facingDirection;
+    }
+
     /**
      * Returns the speed at which the player is currently running.
      */
@@ -489,7 +563,7 @@ public class Wolf : MonoBehaviour
     {
         if (other.tag == "TurnPoint")
         {
-            canTurn = true;
+            turnTrigger = other.GetComponent<Turn>();
         }
     }
 
@@ -497,7 +571,7 @@ public class Wolf : MonoBehaviour
     {
         if (other.tag == "TurnPoint")
         {
-            canTurn = false;
+            turnTrigger = null;
         }
     }
 }

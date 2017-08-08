@@ -7,13 +7,19 @@ public class Checkpoint : MonoBehaviour
 {
     private static Color gizmoColor = new Color(221f / 255, 190f / 255, 64f / 255, 0.5f);
 
-    public bool faceLeft = false;
+    private Wolf.FacingDir facingDirection = Wolf.FacingDir.UP_RIGHT;
+
+    public Wolf.FacingDir getFacingDirection()
+    {
+        return facingDirection;
+    }
 
     private void OnTriggerEnter(Collider other)
     {
         if (other.tag == "Player")
         {
             GameManager.i().lastCheckpoint = gameObject;
+            facingDirection = GameManager.i().playerWolf.getFacingDirection();
         }
     }
 
