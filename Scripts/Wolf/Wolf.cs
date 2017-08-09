@@ -529,7 +529,7 @@ public class Wolf : MonoBehaviour
         }
 
         transform.rotation = Quaternion.Euler(vec_turn);
-        GameManager.i().cameraFollowing.SetOrientation(!leftPressed);
+        GameManager.i().cameraFollowing.SetOrientation(newDirection);
     }
 
     /**
