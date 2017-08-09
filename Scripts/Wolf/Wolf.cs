@@ -228,6 +228,14 @@ public class Wolf : MonoBehaviour
             speed = getCurrentRunSpeedBasedOnTier();
             transitionState(State.DASHING);
         }
+        if (hasAirCharges() && jumpPressed)
+        {
+            Vector3 vel = rb.velocity;
+            vel.y = 0;
+            rb.velocity = vel;
+            consumeAirCharge();
+            rb.AddForce(transform.up * jumpForceAmount);
+        }
         if (speed > 0.1f)
         {
             speed -= airDecelerationRate * Time.deltaTime;
