@@ -39,8 +39,12 @@ public class Wolf : MonoBehaviour
     public float runSpeed2 = 30; // fastest speed
     [Tooltip("How many seconds the player must run at the given speed before upgrading to the next level.")]
     public float runUpgradeTime = 5;
-    [Tooltip("How many units/sec^2 the player decelerates at.")]
-    public float speedDecelerationRate = 5;
+    [Tooltip("How fast the wolf slows down in the air.")]
+    public float airDecelerationRate = 50;
+    [Tooltip("How many units/sec^2 the player decelerates at when not pressing any input.")]
+    public float speedDecelerationRate = 100;
+    [Tooltip("How many units/sec^2 the player decelerates at when pressing backwards.")]
+    public float stopDecelerationRate = 300;
     [Tooltip("Force used to make the player jump.")]
     public float jumpForceAmount = 100;
 
@@ -51,6 +55,8 @@ public class Wolf : MonoBehaviour
     [Header("Privates")]
     [SerializeField]
     private State previousState;
+    [SerializeField]
+    private State previousDashState;
     [SerializeField]
     private FacingDir facingDirection;
 
@@ -68,7 +74,6 @@ public class Wolf : MonoBehaviour
     [SerializeField]
     private bool
         aboutToLand, // Used to prevent animations from changing rapidly.
-        attackPressed,
         backwardPressed,
         dashPressed,
         forwardPressed,
@@ -107,7 +112,6 @@ public class Wolf : MonoBehaviour
         speed = 0;
         speedTierTimer = 0;
         aboutToLand = false;
-        attackPressed = false;
         backwardPressed = false;
         dashPressed = false;
         forwardPressed = false;
@@ -153,8 +157,15 @@ public class Wolf : MonoBehaviour
         }
         if (backwardPressed && !forwardPressed)
         {
-            // 1) Slow down to a stop
-            // 2) If stopped (or nearly) change facing direction to backwards
+            speed -= stopDecelerationRate * Time.deltaTime;
+            checkAndDowngradeSpeedTier();
+            if (speed < 0)
+            {
+                speed *= -1;
+                flipFacingDirection();
+                // TODO switch to idle anim at 1 speed.
+            }
+            transform.Translate(vec_forward * speed * Time.deltaTime);
         }
         if (!forwardPressed && !backwardPressed) // neither forward no backward pressed
         {
@@ -173,19 +184,23 @@ public class Wolf : MonoBehaviour
         }
         if (dashPressed)
         {
-            transitionState(State.DASHING);
-        }
-        if (attackPressed)
-        {
-            // TODO activate hitbox and all.
+            if (backwardPressed && !forwardPressed)
+            {
+                flipFacingDirection();
+                setSpeedtier(2);
+            }
+            else
+            {
+                if (currentRunTier < 2)
+                    setSpeedtier(2);
+            }
         }
         if ((leftPressed || rightPressed) && turnTrigger != null)
         {
             turn();
         }
-
-        // set anim speed to current velocity.
-        // TODO if vel near 0, switch to idle anim at 1 speed.
+        
+        anim.speed = speed / 120;
         checkForGroundAndTransition();
     }
 
@@ -200,7 +215,27 @@ public class Wolf : MonoBehaviour
         }
 
         checkInputs();
-        // slow down forward movement
+        if (hasAirCharges() && dashPressed)
+        {
+            consumeAirCharge();
+            Vector3 vel = rb.velocity;
+            vel.y = 0;
+            rb.velocity = vel;
+            if (currentRunTier < 2)
+            {
+                setSpeedtier(2);
+            }
+            speed = getCurrentRunSpeedBasedOnTier();
+            transitionState(State.DASHING);
+        }
+        if (speed > 0.1f)
+        {
+            speed -= airDecelerationRate * Time.deltaTime;
+            if (speed <= 0.1f)
+                speed = 0;
+            checkAndDowngradeSpeedTier();
+            transform.Translate(vec_forward * speed * Time.deltaTime);
+        }
 
         checkForGroundAndTransition();
     }
@@ -208,10 +243,11 @@ public class Wolf : MonoBehaviour
     private void updateDashing()
     {
         dashTimer -= Time.deltaTime;
-        
+        transform.Translate(vec_forward * speed * Time.deltaTime);
+
         if (dashTimer <= 0)
         {
-            checkForGroundAndTransition();
+            transitionState(previousDashState);
         }
     }
 
@@ -262,6 +298,9 @@ public class Wolf : MonoBehaviour
             case State.FALLING:
                 fm_air.Stop();
                 break;
+            case State.DASHING:
+                rb.useGravity = true;
+                break;
             case State.PAUSED:
                 rb.useGravity = true;
                 rb.velocity = vec_pauseVelocity;
@@ -288,6 +327,11 @@ public class Wolf : MonoBehaviour
                 break;
             case State.FALLING:
                 fm_air.Play();
+                break;
+            case State.DASHING:
+                previousDashState = currentState;
+                rb.useGravity = false;
+                dashTimer = dashLengthTime;
                 break;
             case State.DYING:
                 deathTimer = deathLengthTime;
@@ -325,6 +369,16 @@ public class Wolf : MonoBehaviour
             ++currentRunTier;
             speedTierTimer = 0;
         }
+    }
+
+    /**
+     * Forces a certain speedtier to be applied to the wolf, instantly bumping the wolf to the
+     * desired speed.
+     */
+    private void setSpeedtier(int tierNumber)
+    {
+        currentRunTier = tierNumber;
+        speedTierTimer = 0;
     }
 
     /**
@@ -401,15 +455,14 @@ public class Wolf : MonoBehaviour
         // we need to invert the forward/backward based on if the wolf is facing up or down.
         // If they're facing up, positive vertical values produce forward input.
         // If they're facing down, positive vertical values produce backward input.
-        //bool isFacingUp = facingDirection == FacingDir.UP_LEFT || facingDirection == FacingDir.UP_RIGHT;
-        int mult = 1; // isFacingUp ? 1 : -1;
+        bool isFacingUp = facingDirection == FacingDir.UP_LEFT || facingDirection == FacingDir.UP_RIGHT;
+        int mult = isFacingUp ? 1 : -1;
         float vertical = Input.GetAxis("Vertical") * mult;
         float horizontal = Input.GetAxis("Horizontal") * mult;
         forwardPressed = vertical > 0;
         backwardPressed = vertical < 0;
         leftPressed = horizontal < 0;
         rightPressed = horizontal > 0;
-        attackPressed = Input.GetButtonDown("Attack");
         jumpPressed = Input.GetButtonDown("Jump");
         dashPressed = Input.GetButtonDown("Dash");
     }
@@ -480,6 +533,21 @@ public class Wolf : MonoBehaviour
     }
 
     /**
+     * Reverse the direction the player is facing. If they're facing up-right, they'll now
+     * face down-left.
+     */
+    public void flipFacingDirection()
+    {
+        switch (facingDirection)
+        {
+            case FacingDir.UP_RIGHT:   setFacingDirection(FacingDir.DOWN_LEFT); break;
+            case FacingDir.UP_LEFT:    setFacingDirection(FacingDir.DOWN_RIGHT); break;
+            case FacingDir.DOWN_RIGHT: setFacingDirection(FacingDir.UP_LEFT); break;
+            case FacingDir.DOWN_LEFT:  setFacingDirection(FacingDir.UP_RIGHT); break;
+        }
+    }
+
+    /**
      * Set's the wolf's position.
      * @param newPosition The position the wolf will be set to.
      */
@@ -542,6 +610,38 @@ public class Wolf : MonoBehaviour
     public FacingDir getFacingDirection()
     {
         return facingDirection;
+    }
+
+    /**
+     * Returns true if the wolf has at least one air charge.
+     */
+    public bool hasAirCharges()
+    {
+        return currentAirCharges > 0;
+    }
+
+    public void consumeAirCharge()
+    {
+        if (currentAirCharges > 0)
+            --currentAirCharges;
+    }
+
+    /**
+     * Gives an air charge to the wolf, unless they're already at the maximum
+     * number of air charges.
+     */
+    public void returnAirCharge()
+    {
+        if (currentAirCharges < maximumAirCharges)
+            ++currentAirCharges;
+    }
+
+    /**
+     * Sets the wolf's air charges to the maximum amount.
+     */
+    public void returnAllAirCharges()
+    {
+        currentAirCharges = maximumAirCharges;
     }
 
     /**
