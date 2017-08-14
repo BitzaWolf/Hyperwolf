@@ -62,6 +62,7 @@ public class GameManager : MonoBehaviour
     public MainMenu mainMenu;
     public PauseMenu pauseMenu;
     public LoadingScreen loadingScreen;
+    public LoadingScreen deathScreen;
     public GameObject UIlevelTimer;
     public GameObject eventSystem;
     public string nextLevel;
@@ -315,12 +316,14 @@ public class GameManager : MonoBehaviour
     public void onSceneLoaded(Scene scene, LoadSceneMode mode)
     {
         loadingScreen.fadeOut();
+        Debug.Log(currentState);
         if (currentState == State.LEVEL_LOADING)
         {
             transitionState(State.LEVEL_STARTING);
         }
         else if (currentState == State.MAIN_MENU)
         {
+            Debug.Log("Setting wolf for main menu");
             cameraFollowing.target = player;
             playerWolf.setToLevelStartState();
             SpawnPoint spawn = FindObjectOfType<SpawnPoint>();

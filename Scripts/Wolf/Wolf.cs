@@ -47,6 +47,8 @@ public class Wolf : MonoBehaviour
     public float stopDecelerationRate = 300;
     [Tooltip("Force used to make the player jump.")]
     public float jumpForceAmount = 100;
+    [Tooltip("How time slows down when the player dies.")]
+    public AnimationCurve dyingTimescale;
 
     public FMODUnity.StudioEventEmitter
         fm_running,
@@ -261,24 +263,29 @@ public class Wolf : MonoBehaviour
 
     private void updateDying()
     {
-        deathTimer -= Time.deltaTime;
-        if (deathTimer <= 0)
+        deathTimer += Time.deltaTime;
+        if (deathTimer >= deathLengthTime)
         {
+            deathTimer = deathLengthTime;
             GameObject checkpoint = GameManager.i().lastCheckpoint;
+            GameManager.i().cameraFollowing.target = gameObject;
             if (checkpoint == null)
             {
                 SpawnPoint spawn = GameManager.i().spawnPoint.GetComponent<SpawnPoint>();
                 setFacingDirection(spawn.facingDirection);
                 setPosition(spawn.transform.position);
-                transitionState(State.GRUONDED);
+                transitionState(State.FALLING);
                 return;
             }
 
             Checkpoint cp = checkpoint.GetComponent<Checkpoint>();
             setFacingDirection(cp.getFacingDirection());
             setPosition(cp.transform.position);
-            transitionState(State.GRUONDED);
+            transitionState(State.FALLING);
         }
+
+        float timeScale = dyingTimescale.Evaluate(deathTimer / deathLengthTime);
+        Time.timeScale = timeScale;
     }
 
     private void updateLevelStart()
@@ -308,6 +315,9 @@ public class Wolf : MonoBehaviour
                 break;
             case State.DASHING:
                 rb.useGravity = true;
+                break;
+            case State.DYING:
+                Time.timeScale = 1.0f;
                 break;
             case State.PAUSED:
                 rb.useGravity = true;
@@ -342,7 +352,8 @@ public class Wolf : MonoBehaviour
                 dashTimer = dashLengthTime;
                 break;
             case State.DYING:
-                deathTimer = deathLengthTime;
+                deathTimer = 0;
+                GameManager.i().cameraFollowing.target = null;
                 break;
             case State.PAUSED:
                 rb.useGravity = false;
