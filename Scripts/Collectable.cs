@@ -42,6 +42,7 @@ public class Collectable : MonoBehaviour
         if (c.gameObject.tag == "Player")
         {
             GameManager.i().collectablesGot += 1;
+            GameManager.i().playerWolf.returnAirCharge();
             mesh.enabled = false;
             particles.Play();
             isAlive = false;
