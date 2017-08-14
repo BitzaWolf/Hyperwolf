@@ -94,6 +94,7 @@ public class GameManager : MonoBehaviour
         DontDestroyOnLoad(levelStart.gameObject);
         DontDestroyOnLoad(mainMenu.gameObject);
         DontDestroyOnLoad(loadingScreen.gameObject);
+        DontDestroyOnLoad(pauseMenu.gameObject);
         DontDestroyOnLoad(UIlevelTimer);
         DontDestroyOnLoad(eventSystem);
         SceneManager.sceneLoaded += onSceneLoaded;
@@ -296,6 +297,15 @@ public class GameManager : MonoBehaviour
 
         pauseMenu.Hide();
         transitionState(previousState);
+    }
+
+    /**
+     * Immediately ends the game, cleaning up any resources as needed.
+     */
+    public void quitGame()
+    {
+        Debug.Log("Quitting the game.");
+        Application.Quit();
     }
 
     /**
