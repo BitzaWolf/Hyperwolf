@@ -62,6 +62,7 @@ public class GameManager : MonoBehaviour
     public MainMenu mainMenu;
     public PauseMenu pauseMenu;
     public LoadingScreen loadingScreen;
+    public GameObject UIlevelTimer;
     public GameObject eventSystem;
     public string nextLevel;
     public FMOD.Studio.VCA vca_SFX;
@@ -93,6 +94,7 @@ public class GameManager : MonoBehaviour
         DontDestroyOnLoad(levelStart.gameObject);
         DontDestroyOnLoad(mainMenu.gameObject);
         DontDestroyOnLoad(loadingScreen.gameObject);
+        DontDestroyOnLoad(UIlevelTimer);
         DontDestroyOnLoad(eventSystem);
         SceneManager.sceneLoaded += onSceneLoaded;
 
@@ -162,6 +164,10 @@ public class GameManager : MonoBehaviour
     {
         if (currentState == State.GAME_INIT) { } // intentionally empty
         else if (currentState == State.MAIN_MENU)  { }
+        else if (currentState == State.LEVEL_STARTING)
+        {
+            playerWolf.triggerLevelStarted();
+        }
         else if (currentState == State.IN_LEVEL)
         {
             spawnPoint = null;
@@ -187,16 +193,17 @@ public class GameManager : MonoBehaviour
             levelMetadata = FindObjectOfType<LevelMetadata>();
             SpawnPoint spawn = FindObjectOfType<SpawnPoint>();
             spawnPoint = spawn.gameObject;
+            levelTimer = 0;
+            deaths = 0;
             playerWolf.setFacingDirection(spawn.facingDirection);
             playerWolf.setPosition(spawn.transform.position);
             playerWolf.setToLevelStartState();
             levelStart.show();
+            UIlevelTimer.SetActive(true);
         }
         else if (nextState == State.IN_LEVEL)
         {
-            playerWolf.triggerLevelStarted();
-            levelTimer = 0;
-            deaths = 0;
+
         }
         else if (nextState == State.PAUSED)
         {
@@ -209,7 +216,7 @@ public class GameManager : MonoBehaviour
         }
         else if (nextState == State.LEVEL_LOADING)
         {
-
+            UIlevelTimer.SetActive(false);
         }
         else if (nextState == State.MAIN_MENU) { }// intentionally empty
 
