@@ -227,6 +227,10 @@ public class Wolf : MonoBehaviour
             {
                 setSpeedtier(2);
             }
+            if (backwardPressed && !forwardPressed)
+            {
+                flipFacingDirection();
+            }
             speed = getCurrentRunSpeedBasedOnTier();
             transitionState(State.DASHING);
         }
@@ -240,10 +244,13 @@ public class Wolf : MonoBehaviour
         }
         if (speed > 0.1f)
         {
-            speed -= airDecelerationRate * Time.deltaTime;
-            if (speed <= 0.1f)
-                speed = 0;
-            checkAndDowngradeSpeedTier();
+            if (!forwardPressed)
+            {
+                speed -= airDecelerationRate * Time.deltaTime;
+                if (speed <= 0.1f)
+                    speed = 0;
+                checkAndDowngradeSpeedTier();
+            }
             transform.Translate(vec_forward * speed * Time.deltaTime);
         }
 
@@ -474,14 +481,38 @@ public class Wolf : MonoBehaviour
         // we need to invert the forward/backward based on if the wolf is facing up or down.
         // If they're facing up, positive vertical values produce forward input.
         // If they're facing down, positive vertical values produce backward input.
-        bool isFacingUp = facingDirection == FacingDir.UP_LEFT || facingDirection == FacingDir.UP_RIGHT;
-        int mult = isFacingUp ? 1 : -1;
-        float vertical = Input.GetAxis("Vertical") * mult;
-        float horizontal = Input.GetAxis("Horizontal") * mult;
-        forwardPressed = vertical > 0;
-        backwardPressed = vertical < 0;
-        leftPressed = horizontal < 0;
-        rightPressed = horizontal > 0;
+        //bool isFacingUp = facingDirection == FacingDir.UP_LEFT || facingDirection == FacingDir.UP_RIGHT;
+        //int mult = isFacingUp ? 1 : -1;
+        float vertical = Input.GetAxis("Vertical");// * mult;
+        float horizontal = Input.GetAxis("Horizontal");// * mult;
+
+        switch (facingDirection)
+        {
+            case FacingDir.UP_RIGHT:
+                forwardPressed = vertical > 0;
+                backwardPressed = vertical < 0;
+                leftPressed = horizontal < 0;
+                rightPressed = horizontal > 0;
+                break;
+            case FacingDir.UP_LEFT:
+                forwardPressed = horizontal < 0;
+                backwardPressed = horizontal > 0;
+                leftPressed = vertical < 0;
+                rightPressed = vertical > 0;
+                break;
+            case FacingDir.DOWN_LEFT:
+                forwardPressed = vertical < 0;
+                backwardPressed = vertical > 0;
+                leftPressed = horizontal > 0;
+                rightPressed = horizontal < 0;
+                break;
+            case FacingDir.DOWN_RIGHT:
+                forwardPressed = horizontal > 0;
+                backwardPressed = horizontal < 0;
+                leftPressed = vertical > 0;
+                rightPressed = vertical < 0;
+                break;
+        }
         jumpPressed = Input.GetButtonDown("Jump");
         dashPressed = Input.GetButtonDown("Dash");
     }
