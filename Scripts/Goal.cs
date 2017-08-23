@@ -21,10 +21,24 @@ public class Goal : MonoBehaviour
     {
         if (other.tag == "Player")
         {
-            GameManager gm = GameManager.i();
-            gm.triggerLevelEnd(nextLevel);
-            gm.playerWolf.setToLevelEndState();
-            gm.cameraFollowing.target = gameObject;
+            performLevelEnd();
         }
+    }
+
+    private void performLevelEnd()
+    {
+        GameManager gm = GameManager.i();
+        gm.triggerLevelEnd(nextLevel);
+        gm.playerWolf.setToLevelEndState();
+        gm.cameraFollowing.target = gameObject;
+    }
+
+    /**
+     * Triggers this end-level goal code-wise.
+     * aka, cheating.
+     */
+    public void cheatTrigger()
+    {
+        performLevelEnd();
     }
 }

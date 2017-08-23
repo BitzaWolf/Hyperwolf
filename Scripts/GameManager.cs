@@ -349,7 +349,7 @@ public class GameManager : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.F1))
         {
-
+            FindObjectOfType<Goal>().cheatTrigger();
         }
         if (Input.GetKeyDown(KeyCode.F2))
         {
