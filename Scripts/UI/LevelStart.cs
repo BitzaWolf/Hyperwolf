@@ -8,16 +8,89 @@ using UnityEngine.UI;
 
 public class LevelStart : MonoBehaviour
 {
-    public Image pnl_Text;
-    public Text txt_name, txt_ready, txt_go;
+    public Animator anim_container, anim_ready, anim_go;
+    [Tooltip("The level title.")]
+    public Text txt_title;
+    public float
+        panelInTime,
+        readyInTime,
+        readyOutTime,
+        goInTime,
+        goOutTime;
 
-    private bool secondPanelMovement = false;
-
-    void Start()
+    private enum State
     {
-        pnl_Text.GetComponent<EasingTranslate>().OnFinish += onPanelFinished;
-        txt_ready.GetComponent<EasingTranslate>().OnFinish += onReadyFinished;
-        txt_go.GetComponent<EasingTranslate>().OnFinish += onGoFinished;
+        READY,
+        PANEL_IN,
+        READY_IN,
+        READY_OUT,
+        GO_IN,
+        GO_OUT,
+        ALL_OUT
+    }
+
+    private State currentState = State.READY;
+    private float timer;
+
+    void Update()
+    {
+        if (currentState == State.READY)
+            return;
+
+        timer += Time.deltaTime;
+
+        switch (currentState)
+        {
+            case State.PANEL_IN:
+                if (timer >= panelInTime)
+                {
+                    anim_ready.SetTrigger("Fly");
+                    currentState = State.READY_IN;
+                    timer = 0;
+                }
+                break;
+
+            case State.READY_IN:
+                if (timer >= readyInTime)
+                {
+                    anim_ready.SetTrigger("Fly");
+                    currentState = State.READY_OUT;
+                    timer = 0;
+                }
+                break;
+
+            case State.READY_OUT:
+                if (timer >= readyOutTime)
+                {
+                    anim_go.SetTrigger("Fly");
+                    currentState = State.GO_IN;
+                    timer = 0;
+                }
+                break;
+
+            case State.GO_IN:
+                if (timer >= goInTime)
+                {
+                    anim_go.SetTrigger("Fly");
+                    anim_container.SetTrigger("Fly");
+                    currentState = State.GO_OUT;
+                    timer = 0;
+                    GameManager.i().triggerGameStart();
+                }
+                break;
+
+            case State.GO_OUT:
+                if (timer >= goOutTime)
+                {
+                    anim_container.SetTrigger("Fly");
+                    anim_ready.SetTrigger("Fly");
+                    anim_go.SetTrigger("Fly");
+                    currentState = State.READY;
+                    timer = 0;
+                    gameObject.SetActive(false);
+                }
+                break;
+        }
     }
 
     /**
@@ -27,50 +100,19 @@ public class LevelStart : MonoBehaviour
      */
     public void show()
     {
-        GameManager.i().loadingScreen.fadePanel.OnFinish += onFadeFinish; // already fading out, from GM transition state
+        GameManager.i().loadingScreen.fadePanel.OnFinish += onPinkFadeFinish; // already fading out, from GM transition state
 
-        txt_name.text = GameManager.i().levelMetadata.levelName;
-        txt_name.GetComponent<Easing>().Reset();
-
-        secondPanelMovement = false;
+        txt_title.text = GameManager.i().levelMetadata.levelName;
+        txt_title.GetComponent<Easing>().Reset();
+        
         gameObject.SetActive(true);
     }
 
-    private void onFadeFinish()
+    private void onPinkFadeFinish()
     {
-        GameManager.i().loadingScreen.fadePanel.OnFinish -= onFadeFinish;
-        pnl_Text.GetComponent<Easing>().Play();
-        txt_name.GetComponent<Easing>().Play();
-    }
-
-    private void onPanelFinished()
-    {
-        if (secondPanelMovement)
-        {
-            gameObject.SetActive(false);
-            EasingTranslate e = pnl_Text.GetComponent<EasingTranslate>();
-            e.UndoTranslation();
-            e.UndoTranslation(); // undo twice because we call the animation twice
-            e = txt_ready.GetComponent<EasingTranslate>();
-            e.UndoTranslation();
-            e = txt_go.GetComponent<EasingTranslate>();
-            e.UndoTranslation();
-        }
-        else
-        {
-            txt_ready.GetComponent<Easing>().Play();
-            secondPanelMovement = true;
-        }
-    }
-
-    private void onReadyFinished()
-    {
-        txt_go.GetComponent<EasingTranslate>().Play();
-    }
-
-    private void onGoFinished()
-    {
-        pnl_Text.GetComponent<Easing>().Play();
-        GameManager.i().triggerGameStart();
+        GameManager.i().loadingScreen.fadePanel.OnFinish -= onPinkFadeFinish;
+        txt_title.GetComponent<Easing>().Play();
+        anim_container.SetTrigger("Fly");
+        currentState = State.PANEL_IN;
     }
 }

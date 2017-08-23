@@ -32,6 +32,9 @@ public class MainMenu : MonoBehaviour
         OnAnimationOutFinish += onFlyOutFinish;
     }
 
+    /**
+     * Displays the main menu, animating in the title and buttons.
+     */
     public void show()
     {
         gameObject.SetActive(true);
@@ -47,7 +50,10 @@ public class MainMenu : MonoBehaviour
             titleContainer.SetTrigger("Fly Out");
         }
     }
-
+    
+    /**
+     * Hides the main menu, animating out the title and buttons.
+     */
     public void hide()
     {
         waitTimer = 0;
