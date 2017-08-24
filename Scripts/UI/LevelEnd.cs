@@ -20,6 +20,9 @@ public class LevelEnd : MonoBehaviour
     [Tooltip("How many seconds to wait between flying each UI component out.")]
     public float flyOutDelay = 0.05f;
 
+    [Tooltip("How many seconds to wait after starting flying-out to actually trigger the pink fade.")]
+    public float flyOutTotalTime = 0.3f;
+
     // Grab these so we can display the game-state values.
     public Text txt_name, txt_time, txt_collectables, txt_deaths;
 
@@ -69,6 +72,16 @@ public class LevelEnd : MonoBehaviour
         }
         else if (currentState == State.FLYING_OUT)
         {
+            if (timer < flyOutTotalTime)
+                return;
+
+            // reset UI animations
+            foreach (Animator a in animators)
+            {
+                Debug.Log(a);
+                a.SetTrigger("Fly");
+            }
+
             GameManager gm = GameManager.i();
             gm.loadingScreen.fadePanel.OnFinish += OnFadeinFinished;
             gm.loadingScreen.fadeIn();
@@ -142,12 +155,6 @@ public class LevelEnd : MonoBehaviour
         GameManager gm = GameManager.i();
         gm.loadingScreen.fadePanel.OnFinish -= OnFadeinFinished;
         gm.loadNextLevel();
-        // reset UI animations
-        foreach (Animator a in animators)
-        {
-            Debug.Log(a);
-            a.SetTrigger("Fly");
-        }
         gameObject.SetActive(false);
     }
 }
