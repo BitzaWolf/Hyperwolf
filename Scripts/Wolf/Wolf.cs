@@ -307,7 +307,7 @@ public class Wolf : MonoBehaviour
 
     private void updatePaused()
     {
-
+        
     }
 
     private void leaveState()
@@ -324,11 +324,11 @@ public class Wolf : MonoBehaviour
                 rb.useGravity = true;
                 break;
             case State.DYING:
-                Time.timeScale = 1.0f;
                 break;
             case State.PAUSED:
+                rb.isKinematic = false;
                 rb.useGravity = true;
-                rb.velocity = vec_pauseVelocity;
+                rb.AddForce(vec_pauseVelocity, ForceMode.VelocityChange);
                 coll.enabled = true;
                 anim.speed = 1;
                 break;
@@ -365,7 +365,7 @@ public class Wolf : MonoBehaviour
             case State.PAUSED:
                 rb.useGravity = false;
                 vec_pauseVelocity = rb.velocity;
-                rb.velocity.Set(0, 0, 0);
+                rb.isKinematic = true;
                 coll.enabled = false;
                 anim.speed = 0;
                 break;
@@ -457,6 +457,7 @@ public class Wolf : MonoBehaviour
         if (!aboutToLand && !groundBufferActive)
         {
             anim.SetBool("InAir", !onGround);
+            anim.speed = 1;
             //anim.ResetTrigger("JumpPressed");
         }
     }
