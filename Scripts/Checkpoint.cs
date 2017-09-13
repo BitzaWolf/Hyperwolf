@@ -7,7 +7,7 @@ public class Checkpoint : MonoBehaviour
 {
     private static Color gizmoColor = new Color(221f / 255, 190f / 255, 64f / 255, 0.5f);
 
-    private Wolf.FacingDir facingDirection = Wolf.FacingDir.UP_RIGHT;
+    public Wolf.FacingDir facingDirection = Wolf.FacingDir.UP_RIGHT;
 
     public Wolf.FacingDir getFacingDirection()
     {

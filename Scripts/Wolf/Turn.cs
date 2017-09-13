@@ -23,10 +23,15 @@ public class Turn : MonoBehaviour
     [Tooltip("If the player should be centered to the trigger after turning.")]
     public bool centerOnTurn = true;
     [Header("Limit Turn Directions")]
+    [Tooltip("Allow the player to face positive X")]
     public bool allowUpRight = true;
+    [Tooltip("Allow the player to face positive Z")]
     public bool allowUpLeft = true;
+    [Tooltip("Allow the player to face negative Z")]
     public bool allowDownRight = true;
+    [Tooltip("Allow the player to face negative X")]
     public bool allowDownLeft = true;
+
 
     /**
      * Checks to see if this turn trigger lets objects turn to face the intended direction.

@@ -1,26 +1,18 @@
-﻿/**
- * This shader is used for the player wolf and other creatures in the game.
- * This shader uses a flat, shadeless approach to meshes, but allows them to cast
- * shadows. This gives creatures a funny 2D cutout look, despite being 3D objects
- * and casting 3D shadows.
- * 
- * TODO add a border around creatures.
- * Based on http://wiki.unity3d.com/index.php/Silhouette-Outlined_Diffuse
- * @author Anthony 'Bitzawolf' Pepe
- */
-
-Shader "Bitzawolf/Creature"
+﻿Shader "Bitzawolf/Tree"
 {
 	Properties
 	{
-		_BorderColor ("Border Color", Color) = (0.3, 0.3, 0.3, 1)
-		_BorderSize ("Border Size", Range(0, 1)) = 0
-		_MainTex ("Texture", 2D) = "Black" {}
-		_LightRamp ("Light Ramp", 2D) = "White" {}
+		_MainTex ("Main Texture", 2D) = "white" {}
+		_Tint ("Tint", Color) = (1, 1, 1, 1)
+		_TreeRamp ("Tree Ramp", 2D) = "white" {}
+		_Amount ("Border Size", Range(0, 1)) = 0.5
+		_BorderColor ("Border Color", Color) = (0, 0, 0, 1)
 	}
 
+	// Normal surface lighting
 	SubShader
 	{
+
 		// Create border around the object
 		Pass
 		{
@@ -41,13 +33,13 @@ Shader "Bitzawolf/Creature"
 				float4 pos	: POSITION;
 			};
 
-			float _BorderSize;
+			float _Amount;
 			fixed4 _BorderColor;
  
 			v2f vert (appdata_full v)
 			{
 				v2f o;
-				float3 vert = v.vertex + v.normal * _BorderSize;
+				float3 vert = v.vertex + v.normal * _Amount;
 				o.pos = UnityObjectToClipPos(vert);   
 				return o;
 			}
@@ -57,8 +49,8 @@ Shader "Bitzawolf/Creature"
 				return _BorderColor;
 			}
 			ENDCG   
-		}
-
+		}	
+		
 		CGPROGRAM
 		#pragma surface surf Custom fullforwardshadows
 
@@ -66,7 +58,8 @@ Shader "Bitzawolf/Creature"
 		#pragma target 3.0
 
 		sampler2D _MainTex;
-		sampler2D _LightRamp;
+		sampler2D _TreeRamp;
+		float4 _Tint;
 
 		struct Input
 		{
@@ -76,7 +69,7 @@ Shader "Bitzawolf/Creature"
 		void surf (Input IN, inout SurfaceOutput o)
 		{
 			fixed4 c = tex2D (_MainTex, IN.uv_MainTex);
-			o.Albedo = c.rgb;
+			o.Albedo = c.rgb * _Tint;
 			o.Alpha = 1;
 		}
 
@@ -84,7 +77,7 @@ Shader "Bitzawolf/Creature"
 		{
 			half NdotL = dot(s.Normal, lightDir);
 			half val = (NdotL + 1) / 2;
-			half4 ramp = tex2D(_LightRamp, float2(0.5, val));
+			half4 ramp = tex2D(_TreeRamp, float2(0.5, val));
 			half4 c;
 			c.rgb = s.Albedo * _LightColor0.rgb * ramp;
 			c.a = s.Alpha;
@@ -94,5 +87,5 @@ Shader "Bitzawolf/Creature"
 		ENDCG
 	}
 
-	Fallback "Diffuse"
+	FallBack "Diffuse"
 }

@@ -68,11 +68,14 @@ public class GameManager : MonoBehaviour
     public string nextLevel;
     public FMOD.Studio.VCA vca_SFX;
     public Wolf playerWolf;
+    public ReflectionProbe reflections;
+    public GameObject mainMenuCameraPosition;
 
     // Debug settings
     [Space]
     [Header("Debug")]
     public bool debugMode = true;
+    public bool moveWolfOnStart = true;
 
     /************
      * Privates *
@@ -98,7 +101,12 @@ public class GameManager : MonoBehaviour
         DontDestroyOnLoad(pauseMenu.gameObject);
         DontDestroyOnLoad(UIlevelTimer);
         DontDestroyOnLoad(eventSystem);
+        DontDestroyOnLoad(reflections.gameObject);
+        DontDestroyOnLoad(mainMenuCameraPosition);
         SceneManager.sceneLoaded += onSceneLoaded;
+
+        // activate edge detection
+        //cam.GetComponent<UnityStandardAssets.ImageEffects.EdgeDetection>().enabled = true;
 
         // If we're in debug mode, don't set the current state nor load the Title screen.
         if (debugMode)
@@ -107,7 +115,11 @@ public class GameManager : MonoBehaviour
             if (spawps == null)
                 Debug.LogWarning("No spawn point found!");
             else
+            {
                 spawnPoint = spawps.gameObject;
+                if (moveWolfOnStart)
+                    player.transform.position = spawnPoint.transform.position;
+            }
 
             levelMetadata = FindObjectOfType<LevelMetadata>();
             if (levelMetadata == null)
@@ -165,7 +177,11 @@ public class GameManager : MonoBehaviour
     private void leaveState()
     {
         if (currentState == State.GAME_INIT) { } // intentionally empty
-        else if (currentState == State.MAIN_MENU)  { }
+        else if (currentState == State.MAIN_MENU)
+        {
+            cameraFollowing.enabled = true;
+            player.SetActive(true);
+        }
         else if (currentState == State.LEVEL_STARTING)
         {
             playerWolf.triggerLevelStarted();
@@ -197,6 +213,7 @@ public class GameManager : MonoBehaviour
             spawnPoint = spawn.gameObject;
             levelTimer = 0;
             deaths = 0;
+            collectablesGot = 0;
             playerWolf.setFacingDirection(spawn.facingDirection);
             playerWolf.setPosition(spawn.transform.position);
             playerWolf.setToLevelStartState();
@@ -220,7 +237,12 @@ public class GameManager : MonoBehaviour
         {
             UIlevelTimer.SetActive(false);
         }
-        else if (nextState == State.MAIN_MENU) { }// intentionally empty
+        else if (nextState == State.MAIN_MENU)
+        {
+            cameraFollowing.enabled = false;
+            player.SetActive(false);
+            cam.transform.position = mainMenuCameraPosition.transform.position;
+        }
 
         currentState = nextState;
     }

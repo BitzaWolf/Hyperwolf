@@ -47,8 +47,6 @@ public class Wolf : MonoBehaviour
     public float stopDecelerationRate = 300;
     [Tooltip("Force used to make the player jump.")]
     public float jumpForceAmount = 100;
-    [Tooltip("How time slows down when the player dies.")]
-    public AnimationCurve dyingTimescale;
 
     public FMODUnity.StudioEventEmitter
         fm_running,
@@ -65,6 +63,7 @@ public class Wolf : MonoBehaviour
     [SerializeField]
     private float
         aboutToLandCheckDistance,
+        wallCheckDistance,
         airTimer, // how long the player has been airborne, used for animations.
         dashTimer,
         deathTimer,
@@ -86,7 +85,8 @@ public class Wolf : MonoBehaviour
     [SerializeField]
     private int
         currentAirCharges,
-        currentRunTier;
+        currentRunTier,
+        invisWallLayerMask;
 
     [SerializeField]
     private Vector3
@@ -94,7 +94,8 @@ public class Wolf : MonoBehaviour
         vec_forward,
         vec_offset,
         vec_turn,
-        vec_pauseVelocity;
+        vec_pauseVelocity,
+        vec_wallCheckOffset;
 
     private Animator anim;
     private Rigidbody rb;
@@ -121,11 +122,13 @@ public class Wolf : MonoBehaviour
         rightPressed = false;
         currentAirCharges =  maximumAirCharges;
         currentRunTier = -1;
+        invisWallLayerMask = 1 << LayerMask.NameToLayer("Invisi Walls");
         vec_down = new Vector3(0, -1, 0);
         vec_forward = new Vector3(0, 0, 1);
         vec_turn = new Vector3(0, 90, 0);
         vec_offset = new Vector3(0, 1, 0);
         vec_pauseVelocity = new Vector3();
+        vec_wallCheckOffset = new Vector3(0, 1, 0);
         anim = GetComponent<Animator>();
         rb = GetComponent<Rigidbody>();
         coll = GetComponent<BoxCollider>();
@@ -149,13 +152,14 @@ public class Wolf : MonoBehaviour
     private void updateGrounded()
     {
         checkInputs();
+        bool doMoveForward = false;
 
         if (forwardPressed && !backwardPressed)
         {
             speedTierTimer += Time.deltaTime;
             checkAndUpgradeSpeedTier();
             speed = getCurrentRunSpeedBasedOnTier();
-            transform.Translate(vec_forward * speed * Time.deltaTime);
+            doMoveForward = true;
         }
         if (backwardPressed && !forwardPressed)
         {
@@ -167,7 +171,7 @@ public class Wolf : MonoBehaviour
                 flipFacingDirection();
                 // TODO switch to idle anim at 1 speed.
             }
-            transform.Translate(vec_forward * speed * Time.deltaTime);
+            doMoveForward = true;
         }
         if (!forwardPressed && !backwardPressed) // neither forward no backward pressed
         {
@@ -177,7 +181,7 @@ public class Wolf : MonoBehaviour
                 if (speed <= 0.1f)
                     speed = 0;
                 checkAndDowngradeSpeedTier();
-                transform.Translate(vec_forward * speed * Time.deltaTime);
+                doMoveForward = true;
             }
         }
         if (jumpPressed)
@@ -200,6 +204,17 @@ public class Wolf : MonoBehaviour
         if ((leftPressed || rightPressed) && turnTrigger != null)
         {
             turn();
+        }
+
+        bool wallInFront = Physics.Raycast(transform.position + vec_wallCheckOffset, getFacingDirVec(), wallCheckDistance, invisWallLayerMask);
+
+        if (wallInFront)
+        {
+            stopMovement();
+        }
+        if (doMoveForward && !wallInFront) 
+        {
+            transform.Translate(vec_forward * speed * Time.deltaTime);
         }
         
         anim.speed = speed / 120;
@@ -290,9 +305,6 @@ public class Wolf : MonoBehaviour
             setPosition(cp.transform.position);
             transitionState(State.FALLING);
         }
-
-        float timeScale = dyingTimescale.Evaluate(deathTimer / deathLengthTime);
-        Time.timeScale = timeScale;
     }
 
     private void updateLevelStart()
@@ -424,6 +436,15 @@ public class Wolf : MonoBehaviour
         }
         if (downgradeTier)
             --currentRunTier;
+    }
+
+    /**
+     * Instantly stops any forward movement of the wolf. Resets the speed timer back to as though the wolf isn't running.
+     */
+    public void stopMovement()
+    {
+        setSpeedtier(-1);
+        speed = 0;
     }
 
     /**
@@ -581,6 +602,22 @@ public class Wolf : MonoBehaviour
 
         transform.rotation = Quaternion.Euler(vec_turn);
         GameManager.i().cameraFollowing.SetOrientation(newDirection);
+    }
+
+    /**
+     * Returns the direction as a vector that the wolf is currently facing.
+     * @return Vector3 The wolf's forward-facing direction as a Vector in World Space.
+     */
+    public Vector3 getFacingDirVec()
+    {
+        switch (facingDirection)
+        {
+            default:
+            case FacingDir.UP_RIGHT:   return new Vector3(1,  0,  0);
+            case FacingDir.UP_LEFT:    return new Vector3(0,  0,  1);
+            case FacingDir.DOWN_RIGHT: return new Vector3(0,  0, -1);
+            case FacingDir.DOWN_LEFT:  return new Vector3(-1, 0,  0);
+        }
     }
 
     /**
